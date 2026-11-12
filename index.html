@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2b2150" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>My Little Fairy House</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #2b2150;
+        overflow: hidden;
+        touch-action: none;
+        overscroll-behavior: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #game { width: 100vw; height: 100vh; height: 100dvh; }
+      /* Vollbild-Knopf oben rechts (nur Tablet/Handy, fehlt wo es kein Vollbild gibt) */
+      #btn-full { display: none; }
+      body.touch #btn-full {
+        display: block; position: fixed; right: 14px; top: 14px; z-index: 5; width: 52px; height: 52px;
+        border-radius: 14px; padding: 0; cursor: pointer; color: #5a3a7a;
+        background: rgba(255, 244, 251, 0.85); border: 3px solid #e2b6ff;
+      }
+      body.touch.no-fullscreen #btn-full { display: none; }
+      #btn-full svg { display: block; margin: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <button id="btn-full" aria-label="Vollbild"></button>
+    <script>
+      // Tablet/Handy schon beim Laden erkennen, damit der Knopf sofort da ist
+      if (matchMedia('(pointer: coarse)').matches || location.search.includes('touch')) document.body.classList.add('touch');
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
