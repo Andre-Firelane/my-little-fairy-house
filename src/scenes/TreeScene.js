@@ -9,7 +9,8 @@ import Room from '../objects/Room.js';
 import Sparkles from '../systems/particles.js';
 import Placement from '../systems/placement.js';
 import { popIn, wobble } from '../systems/juice.js';
-import { makeRng, clamp } from '../systems/motion.js';
+import { makeRng, clamp, lerpColor } from '../systems/motion.js';
+import DayNight from '../systems/dayNight.js';
 import { paintTiles } from '../systems/bake.js';
 import TREE_PARTS from '../config/tree.json';
 import { BG_RES } from '../config/quality.js';
@@ -30,6 +31,14 @@ export default class TreeScene extends Phaser.Scene {
 
   create() {
     this.drawTree();
+    // Tag und Nacht: nachts legt sich ein dunkelblauer Schleier über Baum und leere Höhlen
+    // (die Räume dunkeln sich selbst ab, siehe life/RoomLife.js – so leuchten ihre Lampen)
+    this.clock = new DayNight();
+    this.nightVeil = this.add
+      .rectangle(-6000, -4000, WORLD_W + 12000, WORLD_H + 8000, 0x1d1846, 1)
+      .setOrigin(0)
+      .setAlpha(0)
+      .setDepth(DEPTH.slot + 0.5);
 
     this.sparkles = new Sparkles(this);
     this.slots = SLOTS.map((d) => new Slot(this, d));
@@ -81,6 +90,13 @@ export default class TreeScene extends Phaser.Scene {
       this.vel.x *= k;
       this.vel.y *= k;
     }
+
+    // Tag und Nacht
+    this.clock.update(dt);
+    const dark = this.clock.darkness;
+    this.nightVeil.setAlpha(dark * 0.45).setVisible(dark > 0.001);
+    const rimTint = lerpColor(0xffffff, 0x8f88c8, dark);
+    for (const room of this.rooms) room.view.rim.setTint(rimTint);
 
     // Leben in allen Räumen; Räume außerhalb des Bildes werden nicht gezeichnet und seltener bewegt
     const view = this.cameras.main.worldView;

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, WORLD_W, WORLD_H, UI_W } from '../config/layout.js';
 import { bakedImage } from '../systems/bake.js';
-import { makeRng } from '../systems/motion.js';
+import { makeRng, lerpColor } from '../systems/motion.js';
 import { BG_RES } from '../config/quality.js';
 
 // Hintergrund unter dem Baum: Himmel und ferner Wald. Eigene Szene ohne Zoom, damit der Himmel immer
@@ -92,6 +92,13 @@ export default class BackScene extends Phaser.Scene {
   update() {
     const v = this.tree.camView;
     if (!v) return;
+    // Nacht: Himmel und Wald dunkler
+    const dark = this.tree.clock?.darkness ?? 0;
+    if (dark !== this.dark) {
+      this.dark = dark;
+      this.sky.setTint(lerpColor(0xffffff, 0x4c4c8c, dark));
+      this.forest.setTint(lerpColor(0xffffff, 0x5c5c96, dark));
+    }
     // 0 = Baumkrone oben, 1 = Wurzeln unten
     const depth = v.y / WORLD_H;
     const s = 0.75 + v.zoom * 0.35;

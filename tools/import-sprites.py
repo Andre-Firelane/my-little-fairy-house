@@ -407,8 +407,50 @@ def delivery_3():
     save(limit(crop(on)), 'leselampe@on')
 
 
+# ================================================================ Lieferung 4: Badezimmer, Musikzimmer, Allgemeines
+BATH_MUSIC = {
+    'Wald_neu.png': 'badewanne',
+    'Wald_neu-2.png': 'pflegeschrank',
+    'Wald_neu-7.png': 'harfe',
+    'Wald_neu-8.png': 'laute',
+    'Wald_neu-9.png': 'piano',
+    'Wald_neu-11.png': 'bild',  # Motive: Nacht über Hügeln, Blume, Pilzhaus, Regenbogen (furniture.js → spriteVariants)
+    'Wald_neu-12.png': 'bild@v1',
+    'Wald_neu-13.png': 'bild@v2',
+    'Wald_neu-14.png': 'bild@v3',
+    'Wald_neu-15.png': 'deckenlampe',
+    'Wald_neu-18.png': 'vase',
+    'Wald_neu-19.png': 'fenster',  # Tag
+    'Wald_neu-17.png': 'fenster@night',
+}
+
+
+def delivery_4():
+    for src, name in BATH_MUSIC.items():
+        save(limit(crop(clean(load(src)))), name)
+    # Spiegelschrank zu/offen: gleich groß, damit er beim Öffnen nicht springt (rechtsbündig, die Tür ragt links heraus)
+    shut = crop(clean(load('Wald_neu-3.png')), 0)
+    opened = crop(clean(load('Wald_neu-4.png')), 0)
+    opened = opened.resize((round(opened.width * shut.height / opened.height), shut.height), Image.LANCZOS)
+    w = max(shut.width, opened.width)
+    for im, name in ((shut, 'spiegelschrank'), (opened, 'spiegelschrank@open')):
+        canvas = Image.new('RGBA', (w, shut.height), (0, 0, 0, 0))
+        canvas.paste(im, (w - im.width, 0))
+        save(limit(canvas), name)
+    # Deckenlampe an: die Glühbirne unten leuchtet warm
+    lamp = crop(clean(load('Wald_neu-15.png')), 0)
+    lw, lh = lamp.size
+    glow = ImageEnhance.Brightness(lamp).enhance(1.3)
+    r, g, b, a = glow.split()
+    glow = Image.merge('RGBA', (r.point(lambda v: min(255, v + 50)), g.point(lambda v: min(255, v + 35)), b, a))
+    bulb = Image.new('L', lamp.size, 0)
+    ImageDraw.Draw(bulb).ellipse((round(lw * 0.3), round(lh * 0.72), round(lw * 0.7), lh), fill=255)
+    bulb = bulb.filter(ImageFilter.GaussianBlur(10))
+    save(limit(crop(Image.composite(glow, lamp, bulb))), 'deckenlampe@on')
+
+
 # ================================================================ Ablauf
-DELIVERIES = {'scenario-assets1': delivery_1, 'scenario-assets2': delivery_2, 'scenario-assets3': delivery_3}
+DELIVERIES = {'scenario-assets1': delivery_1, 'scenario-assets2': delivery_2, 'scenario-assets3': delivery_3, 'scenario-assets4': delivery_4}
 frames = None
 for SRC in sys.argv[1:]:
     base = os.path.basename(os.path.normpath(SRC))

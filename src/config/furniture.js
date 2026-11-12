@@ -20,6 +20,7 @@ export const CELL = 80;
 export const STICKER_PAD = 10;
 
 const GLASS = 0x7fb0d0; // Glaskante: kräftig genug für helle Wände
+const TUB_EMPTY = 0xf1e6d6; // Innenfarbe der leeren Badewanne (übermalt das gemalte Wasser)
 
 function glassStyle(g) {
   g.fillStyle(0xffffff, 0.55);
@@ -1061,17 +1062,25 @@ export const FURNITURE = {
   badewanne: {
     id: 'badewanne',
     name: 'Badewanne',
+    sprite: 'badewanne',
     kind: 'floor',
     w: 4,
-    h: 2,
-    liquidCenter: { x: 160, y: 46 },
-    bath: { rimY: 46, faucet: { x: 54, y: 22 }, seat: { x: 170, y: 50 }, duck: { x: 240, y: 52 } },
+    h: 3,
+    liquidCenter: { x: 160, y: 107 },
+    // leer: das gemalte Wasser wird mit der Innenfarbe der Wanne übermalt (emptyLiquid)
+    emptyLiquid: TUB_EMPTY,
+    bath: { rimY: 109, faucet: { x: 59, y: 67 }, seat: { x: 155, y: 109 }, duck: { x: 229, y: 109 } },
     liquid(g, color, alpha = 1, foam = 0) {
-      g.fillStyle(color, alpha * 0.9);
-      g.fillEllipse(160, 46, 270, 22);
+      g.fillStyle(TUB_EMPTY, 1);
+      g.fillEllipse(160, 108, 280, 29);
+      g.fillStyle(0xe4d6c2, 1);
+      g.fillEllipse(160, 101, 261, 13);
+      if (color === TUB_EMPTY) return;
+      g.fillStyle(color, alpha * 0.92);
+      g.fillEllipse(160, 108, 280, 29);
       g.fillStyle(0xffffff, 0.45 * alpha);
-      g.fillEllipse(120, 43, 90, 6);
-      if (foam > 0) drawFoam(g, foam, 46);
+      g.fillEllipse(112, 104, 93, 7);
+      if (foam > 0) drawFoam(g, foam, 107, 32, 256);
     },
     draw: drawBathtub,
   },
@@ -1079,10 +1088,11 @@ export const FURNITURE = {
   spiegelschrank: {
     id: 'spiegelschrank',
     name: 'Spiegelschrank',
+    sprite: 'spiegelschrank',
     kind: 'wall',
     w: 2,
     h: 2,
-    mirror: { x: 80, y: 74 }, // Mitte des Spiegels (davor macht sich die Fee hübsch)
+    mirror: { x: 90, y: 84 }, // Mitte des Spiegels (davor macht sich die Fee hübsch)
     draw: (g) => drawMirrorCabinet(g, false),
     states: { open: (g) => drawMirrorCabinet(g, true) },
   },
@@ -1090,11 +1100,12 @@ export const FURNITURE = {
   pflegeschrank: {
     id: 'pflegeschrank',
     name: 'Pflegeschrank',
+    sprite: 'pflegeschrank',
     kind: 'floor',
     w: 2,
     h: 3,
-    surfaces: [{ y: 2.9, x0: 0, x1: 2 }], // oben drauf
-    shampoo: { x: 45, y: 126 }, // hier steht das Shampoo (die Fee nimmt es fürs Bad)
+    surfaces: [{ y: 2.65, x0: 0, x1: 2 }], // oben drauf
+    shampoo: { x: 44, y: 128 }, // hier steht das Shampoo (die Fee nimmt es fürs Bad)
     draw: drawCareCabinet,
   },
 
@@ -1114,27 +1125,30 @@ export const FURNITURE = {
   harfe: {
     id: 'harfe',
     name: 'Harfe',
+    sprite: 'harfe',
     kind: 'floor',
     w: 2,
     h: 3,
-    instrument: { mode: 'sit', at: { x: 150, y: 150 }, face: -1, notes: { x: 90, y: 70 }, color: 0xffd166 },
+    instrument: { mode: 'sit', at: { x: 168, y: 150 }, face: -1, notes: { x: 80, y: 60 }, color: 0xffd166 },
     draw: drawHarp,
   },
 
   piano: {
     id: 'piano',
     name: 'Klavier',
+    sprite: 'piano',
     kind: 'floor',
     w: 3,
     h: 2,
-    surfaces: [{ y: 1.95, x0: 0, x1: 3 }], // oben drauf
-    instrument: { mode: 'sit', at: { x: 120, y: 96 }, face: 1, notes: { x: 120, y: 30 }, color: 0xff7ab8 },
+    surfaces: [{ y: 1.9, x0: 0, x1: 3 }], // oben drauf
+    instrument: { mode: 'sit', at: { x: 120, y: 108 }, face: 1, notes: { x: 120, y: 24 }, color: 0xff7ab8 },
     draw: drawPiano,
   },
 
   laute: {
     id: 'laute',
     name: 'Laute',
+    sprite: 'laute',
     kind: 'small',
     w: 1,
     h: 1,
@@ -1191,6 +1205,9 @@ export const FURNITURE = {
   bild: {
     id: 'bild',
     name: 'Bild',
+    sprite: 'bild',
+    spriteVariants: ['bild', 'bild_v1', 'bild_v2', 'bild_v3'], // je Motiv ein gemaltes Bild
+    cardVariant: 1, // in der Leiste: das Blumenbild (aufgehängt wird ein zufälliges Motiv)
     kind: 'wall',
     w: 2,
     h: 2,
@@ -1201,10 +1218,13 @@ export const FURNITURE = {
   fenster: {
     id: 'fenster',
     name: 'Fenster',
+    sprite: 'fenster',
     kind: 'wall',
     w: 2,
     h: 2,
-    draw: drawWindow,
+    skyWindow: true, // zeigt draußen Tag oder Nacht (life/RoomLife.js folgt der Uhr)
+    draw: (g) => drawWindow(g, false),
+    states: { night: (g) => drawWindow(g, true) },
   },
 
   // Teppich: liegt flach auf dem Boden, eigene Ebene ('rug') – Möbel dürfen darauf stehen
@@ -1223,12 +1243,13 @@ export const FURNITURE = {
   deckenlampe: {
     id: 'deckenlampe',
     name: 'Deckenlampe',
+    sprite: 'deckenlampe',
     kind: 'wall',
     w: 1,
     h: 1,
     ceiling: true,
     toggle: true,
-    lamp: { x: 40, y: 58, color: 0xffe9a8, size: 5, alpha: 0.4 },
+    lamp: { x: 40, y: 72, color: 0xffe9a8, size: 5, alpha: 0.4 },
     draw: (g) => drawCeilingLamp(g, false),
     states: { on: (g) => drawCeilingLamp(g, true) },
   },
@@ -1249,6 +1270,7 @@ export const FURNITURE = {
   vase: {
     id: 'vase',
     name: 'Vase',
+    sprite: 'vase',
     kind: 'small',
     w: 1,
     h: 1,
@@ -1269,12 +1291,12 @@ export function lookState(def, item = {}) {
 
 // ---- Badezimmer ----
 
-// Schaumberg über der Wanne (amount 0..1 = wie viel Schaum), y = Höhe der Wasserfläche
-export function drawFoam(g, amount, y) {
+// Schaumberg über der Wanne (amount 0..1 = wie viel Schaum), y = Höhe der Wasserfläche, x0..x0+w = Breite
+export function drawFoam(g, amount, y, x0 = 40, w = 240) {
   const n = Math.round(6 + amount * 16);
   for (let i = 0; i < n; i++) {
     // feste Pseudo-Zufallswerte, damit der Schaum beim Wachsen nicht springt
-    const x = 40 + ((i * 97) % 240);
+    const x = x0 + ((i * 97) % w);
     const r = (8 + ((i * 37) % 9)) * (0.5 + amount * 0.5);
     const dy = ((i * 53) % 14) * amount;
     g.fillStyle(i % 4 === 0 ? 0xffe3f1 : 0xffffff, 0.95);
@@ -1674,26 +1696,41 @@ function drawPicture(g, v) {
   }
 }
 
-function drawWindow(g) {
+function drawWindow(g, night) {
   const wood = 0xb07a50;
   // Rahmen (Rundbogen)
   g.fillStyle(wood, 1);
   g.fillRoundedRect(8, 4, 144, 142, { tl: 72, tr: 72, bl: 8, br: 8 });
-  // Nachthimmel
-  g.fillStyle(0x3d3a8c, 1);
+  // Himmel: oben kräftiger, unten heller
+  g.fillStyle(night ? 0x3d3a8c : 0x8fd0ff, 1);
   g.fillRoundedRect(20, 16, 120, 122, { tl: 60, tr: 60, bl: 4, br: 4 });
-  g.fillStyle(0x5a4fb0, 1);
+  g.fillStyle(night ? 0x5a4fb0 : 0xc4e8ff, 1);
   g.fillRect(20, 92, 120, 46);
-  // Mond und Sterne
-  g.fillStyle(0xfff3a8, 1);
-  g.fillCircle(104, 56, 16);
-  g.fillStyle(0x3d3a8c, 1);
-  g.fillCircle(111, 50, 14);
-  g.fillStyle(0xffffff, 1);
-  fillStar(g, 46, 50, 6, 2.5, 5);
-  fillStar(g, 62, 90, 4, 1.8, 5);
-  fillStar(g, 118, 106, 5, 2, 5);
-  fillStar(g, 40, 112, 3, 1.4, 5);
+  if (night) {
+    // Mond und Sterne
+    g.fillStyle(0xfff3a8, 1);
+    g.fillCircle(104, 56, 16);
+    g.fillStyle(0x3d3a8c, 1);
+    g.fillCircle(111, 50, 14);
+    g.fillStyle(0xffffff, 1);
+    fillStar(g, 46, 50, 6, 2.5, 5);
+    fillStar(g, 62, 90, 4, 1.8, 5);
+    fillStar(g, 118, 106, 5, 2, 5);
+    fillStar(g, 40, 112, 3, 1.4, 5);
+  } else {
+    // Sonne und Wolken
+    g.fillStyle(0xffe066, 1);
+    g.fillCircle(104, 52, 15);
+    g.fillStyle(0xfff3a8, 1);
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      g.fillCircle(104 + Math.cos(a) * 23, 52 + Math.sin(a) * 23, 3.5);
+    }
+    g.fillStyle(0xffffff, 1);
+    for (const [x, y, r] of [[38, 66, 9], [50, 60, 12], [62, 67, 9], [96, 110, 8], [107, 105, 10], [118, 111, 8]]) g.fillCircle(x, y, r);
+    g.fillRect(38, 66, 24, 9);
+    g.fillRect(96, 110, 22, 9);
+  }
   // Blätter vor dem Fenster
   g.fillStyle(0x4a9a58, 1);
   g.fillEllipse(30, 132, 30, 14);

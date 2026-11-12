@@ -15,8 +15,10 @@ export default class BootScene extends Phaser.Scene {
     const files = new Set(['baum']);
     for (const def of Object.values(FURNITURE)) {
       if (!def.sprite) continue;
-      files.add(def.sprite);
-      for (const state of Object.keys(def.states || {})) files.add(def.spriteStates?.[state] ?? `${def.sprite}_${state}`);
+      for (const base of def.spriteVariants || [def.sprite]) {
+        files.add(base);
+        for (const state of Object.keys(def.states || {})) files.add(def.spriteStates?.[state] ?? `${base}_${state}`);
+      }
     }
     // nur vorhandene Bilder laden (fehlende Zustandsbilder: dann gilt das Grundbild)
     for (const f of files) if (SPRITE_FILES.includes(f)) this.load.image(`spr-${f}`, `assets/sprites/${f}.png`);
@@ -69,8 +71,9 @@ export default class BootScene extends Phaser.Scene {
       for (let v = 0; v < (def.variants || 1); v++) {
         for (const state of [null, ...Object.keys(def.states || {})]) {
           if (def.sprite) {
-            const file = state ? (def.spriteStates?.[state] ?? `${def.sprite}_${state}`) : def.sprite;
-            this.spriteTexture(def, textureKey(def.id, v, state), this.textures.exists(`spr-${file}`) ? file : def.sprite);
+            const base = def.spriteVariants?.[v] ?? def.sprite;
+            const file = state ? (def.spriteStates?.[state] ?? `${base}_${state}`) : base;
+            this.spriteTexture(def, textureKey(def.id, v, state), this.textures.exists(`spr-${file}`) ? file : base);
             continue;
           }
           g.clear();

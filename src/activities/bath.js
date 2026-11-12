@@ -130,7 +130,7 @@ export default {
     const seat = at(B.seat.x, B.rimY);
     await c.fly(seat.x, seat.y - 120);
     c.ensure(c.alive(tub));
-    await c.fly(seat.x, seat.y - 8, 90);
+    await c.fly(seat.x, seat.y - 24, 90); // Kopf und Schultern schauen aus dem Schaum
     c.ensure(c.alive(tub));
     const cover = this.makeCover(c, tub, foam);
     f.pose.face = -1;
@@ -230,8 +230,8 @@ export default {
       }
     });
     const ring = c.scene.make.image({ key }, false).setOrigin(0.5, 0.5);
-    const p = tub.artToLocal(tub.W / 2, B.rimY - 2);
-    ring.setPosition(p.x, p.y).setScale(1, 0.4 + foam * 0.6).setAlpha(foam > 0 ? 1 : 0.6);
+    const p = tub.artToLocal(tub.W / 2, B.rimY + 2);
+    ring.setPosition(p.x, p.y).setScale(1, 0.35 + foam * 0.45).setAlpha(foam > 0 ? 1 : 0.6);
     if (!foam) ring.setTint(WATER);
     const parts = [front, ring];
     parts.forEach((o) => c.life.layer.add(o));

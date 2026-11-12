@@ -1,5 +1,6 @@
 import { textureKey } from '../config/furniture.js';
 import { pick } from '../systems/motion.js';
+import { DAY } from '../systems/dayNight.js';
 
 // Schlafen: (Schlafanzug aus dem Kleiderschrank anziehen) → (Nachtlicht anmachen) → ins Bett legen,
 // Zs steigen auf, der Raum wird dunkel → aufwachen, strecken → (Licht aus, wenn sonst niemand schläft)
@@ -8,6 +9,8 @@ export default {
   id: 'sleep',
   icon: textureKey('bett'),
   uses: (def) => def.id === 'bett',
+  // Mittagsschlaf erst eine Weile nach dem Aufstehen (nachts schlafen alle ohnehin, siehe night.js)
+  available: (s, d) => { const t = d.scene.clock?.t ?? 100; return t > 60 && t < DAY; },
 
   async run(c, bed) {
     const { f, life } = c;

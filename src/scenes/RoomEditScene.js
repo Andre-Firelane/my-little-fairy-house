@@ -197,7 +197,7 @@ export default class RoomEditScene extends Phaser.Scene {
     const tw = def.w * CELL + STICKER_PAD * 2;
     const th = def.h * CELL + STICKER_PAD * 2;
     const s = Math.min(150 / tw, 190 / th, 1.5);
-    const img = this.add.image(0, 0, textureKey(def.id)).setScale(s);
+    const img = this.add.image(0, 0, textureKey(def.id, def.cardVariant ?? 0)).setScale(s);
     c.add([cardImage(this, CARD_W, CARD_H, 26, this.typeDef.accent), img]);
     c.setSize(CARD_W, CARD_H).setInteractive();
     c.def = def;
@@ -266,7 +266,7 @@ export default class RoomEditScene extends Phaser.Scene {
     }
 
     if (press.source === 'tray') {
-      press.sticker = this.view.createSticker(press.def);
+      press.sticker = this.view.createSticker(press.def, { v: press.def.cardVariant ?? 0 }); // wie auf der Karte
       popIn(T, press.sticker, { from: 0.4, to: 1.08, duration: 450 });
       squish(this, press.card);
       press.ignore = new Set();
@@ -357,6 +357,7 @@ export default class RoomEditScene extends Phaser.Scene {
       item = { uid: newUid(), id: press.def.id, ...spot, ...pickVariant(press.def) };
       this.state.items.push(item);
       press.sticker.item = item;
+      press.sticker.setLook(item); // zufälliges Motiv beim Aufhängen
       this.view.stickers.set(item.uid, press.sticker);
     } else {
       const dgx = spot.gx - item.gx;

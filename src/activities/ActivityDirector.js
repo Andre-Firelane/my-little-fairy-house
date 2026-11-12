@@ -11,6 +11,7 @@ import bath from './bath.js';
 import primp from './primp.js';
 import { play, dance, disco } from './music.js';
 import { light, water, relax } from './home.js';
+import nightSleep from './night.js';
 
 // Alle Tätigkeiten. Neue einfach hier eintragen:
 // { id, icon, uses(def) → passt zu diesem Gegenstand?, available?(sticker, director) → gerade möglich?, run(c, sticker) }
@@ -30,8 +31,13 @@ export default class ActivityDirector {
   }
 
   update(dt) {
+    const night = this.scene.clock?.night;
     for (const f of this.life.fairies) {
       if (this.jobs.has(f) || f.state !== 'wander') continue;
+      if (night) {
+        this.goToBed(f);
+        continue;
+      }
       const t = (this.idle.get(f) ?? rand(1.5, 4)) - dt;
       this.idle.set(f, t);
       if (t <= 0) {
@@ -73,15 +79,29 @@ export default class ActivityDirector {
 
   start(f, activity, target) {
     if (!activity || !target?.item || this.reserved.has(target.item.uid)) return false;
+    return this.startJob(f, activity, target, target.item.uid);
+  }
+
+  // Nacht: Schlafplatz holen (das Haus verteilt sie, siehe life/Residents.js) und schlafen gehen
+  goToBed(f) {
+    const spot = this.scene.residents?.claimBed(f, this.life);
+    if (!spot) return false;
+    // Bett und Sitzplatz gehören dann dieser Fee; Teppich und Boden teilen sich mehrere
+    const uid = spot.tier <= 2 ? spot.sticker.item.uid : null;
+    if (uid && this.reserved.has(uid)) return false;
+    return this.startJob(f, nightSleep, spot, uid);
+  }
+
+  startJob(f, activity, arg, reserveUid = null) {
     this.abort(f);
     const token = { aborted: false };
     const ctx = new JobContext(this, f, token);
-    ctx.reserve(target.item.uid);
+    if (reserveUid) ctx.reserve(reserveUid);
     const job = { f, activity, ctx, token };
     this.jobs.set(f, job);
     f.hold();
     activity
-      .run(ctx, target)
+      .run(ctx, arg)
       .then(() => this.end(job, false))
       .catch((e) => {
         if (e === ABORT) return;

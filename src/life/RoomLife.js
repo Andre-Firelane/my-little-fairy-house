@@ -61,15 +61,15 @@ export default class RoomLife {
   // eine Fee legt sich schlafen (+1) bzw. steht auf (−1): Raum wird dunkel bzw. wieder hell
   setSleeping(delta) {
     this.sleepers = Math.max(0, this.sleepers + delta);
-    this.updateNight();
   }
 
-  // Raum abdunkeln: Schlafen (dunkel) oder Disco (etwas dunkler, damit die bunten Lichter leuchten)
-  updateNight() {
+  // Raum abdunkeln: Nacht, eine Fee schläft, oder Disco (etwas dunkler, damit die bunten Lichter leuchten).
+  // Wird jedes Bild sanft nachgeführt (update).
+  updateNight(dt = 1) {
     if (!this.view) return;
-    const alpha = this.sleepers > 0 ? 0.45 : this.discoSpots ? 0.32 : 0;
-    this.scene.tweens.killTweensOf(this.view.night);
-    this.scene.tweens.add({ targets: this.view.night, alpha, duration: 1600, ease: 'Sine.InOut' });
+    const want = Math.max((this.scene.clock?.darkness ?? 0) * 0.5, this.sleepers > 0 ? 0.45 : 0, this.discoSpots ? 0.32 : 0);
+    const n = this.view.night;
+    if (Math.abs(n.alpha - want) > 0.002) n.alpha += (want - n.alpha) * Math.min(1, dt * 1.2);
   }
 
   // Discokugel an: bunte Lichtflecken wandern durch den Raum
@@ -89,7 +89,6 @@ export default class RoomLife {
       this.discoSpots.forEach((s) => s.destroy());
       this.discoSpots = null;
     }
-    this.updateNight();
   }
 
   moveDisco(dt) {
@@ -112,6 +111,14 @@ export default class RoomLife {
     let disco = false;
     for (const s of this.view.stickers.values()) {
       if (s.def.disco && s.item?.state === 'on' && s.active && !s.carried) disco = true;
+      // Fenster: draußen Tag oder Nacht (Wechsel in der Mitte der Dämmerung)
+      if (s.def.skyWindow && s.item) {
+        const look = (this.scene.clock?.darkness ?? 0) > 0.5 ? 'night' : null;
+        if ((s.item.state ?? null) !== look) {
+          s.item.state = look;
+          s.setLook(s.item);
+        }
+      }
       if (!s.def.lamp) continue;
       const on = s.item?.state === 'on' && s.active;
       let halo = this.halos.get(s.item.uid);
@@ -185,6 +192,7 @@ export default class RoomLife {
 
   update(dt, onScreen) {
     if (this.dead) return;
+    this.updateNight(dt);
     this.director.update(dt);
     if (this.view) this.syncLights();
     if (this.discoSpots && onScreen) this.moveDisco(dt);
