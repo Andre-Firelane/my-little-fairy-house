@@ -1,5 +1,6 @@
 import Sparkles from '../systems/particles.js';
 import Fairy from '../objects/Fairy.js';
+import Ghost from '../objects/Ghost.js';
 import ActivityDirector from '../activities/ActivityDirector.js';
 import { rand } from '../systems/motion.js';
 
@@ -28,6 +29,8 @@ export default class RoomLife {
     this.fairies = [];
     this.draggingUids = new Set(); // Items, die das Kind gerade in der Hand hat
     this.sparkles = new Sparkles(scene, layer);
+    this.mist = new Sparkles(scene, layer, { mist: true }); // Geister glitzern nicht, sie nebeln
+    this.ghosts = []; // Besuch der Geisterstunde (zählt nicht zu den Feen des Hauses)
     this.director = new ActivityDirector(this);
     this.acc = 0;
     this.frame = 0;
@@ -54,6 +57,7 @@ export default class RoomLife {
   setDetail(on) {
     this.detail = on;
     this.sparkles.setDetail(on);
+    this.mist.setDetail(on);
     this.director.bubbles.enabled = on;
     if (!on) this.director.bubbles.hideAll();
   }
@@ -168,6 +172,50 @@ export default class RoomLife {
     this.dead = true;
     this.director.abortAll();
     this.director.bubbles.hideAll();
+    this.ghosts = [];
+  }
+
+  // ---------- Geister (Geisterstunde) ----------
+
+  // ein Geist schwebt von der Seite herein
+  addGhost(palette, delay = 0) {
+    this.scene.time.delayedCall(delay, () => {
+      if (this.dead || !this.view) return;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const a = this.getWanderArea();
+      const g = new Ghost(this.scene, side * (this.view.geo.W / 2 + 260), rand(a.y1, a.y2), palette, this.mist, FAIRY_SCALE, this, this.layer);
+      g.arrivedAt = this.scene.time.now / 1000;
+      this.ghosts.push(g);
+      g.goTo({ x: rand(a.x1, a.x2), y: rand(a.y1, a.y2) }, 220).then(() => {
+        if (g.state === 'script' && !this.director.jobs.has(g)) g.wander();
+        this.mist.burst(g.x, g.y, 10);
+      });
+    });
+  }
+
+  // Morgen: die Geister hören auf, winken kurz und schweben hinaus
+  sendGhostsAway() {
+    const ghosts = this.ghosts;
+    this.ghosts = [];
+    this.leaving ??= new Set();
+    ghosts.forEach((g) => this.leaving.add(g)); // bewegen sich weiter, bis sie draußen sind
+    for (const g of ghosts) {
+      this.director.abort(g);
+      this.director.bubbles.hide(g, true);
+      this.director.idle.delete(g);
+      g.hold();
+      g.pose.bob = 1.6; // aufgeregtes Winken
+      this.scene.time.delayedCall(600 + Math.random() * 900, () => {
+        if (!g.active) return;
+        const side = g.pos.x < 0 ? -1 : 1;
+        this.mist.burst(g.x, g.y, 8);
+        g.goTo({ x: side * (this.view.geo.W / 2 + 320), y: g.pos.y - 160 }, 320).then(() => {
+          this.leaving.delete(g);
+          g.dropTrail();
+          g.destroy();
+        });
+      });
+    }
   }
 
   // eine Fee zieht ein: kommt von der Seite angeflogen
@@ -208,6 +256,13 @@ export default class RoomLife {
     const step = Math.min(this.acc, 0.3);
     this.acc = 0;
     for (const f of this.fairies) f.update(step);
+    for (const g of this.ghosts) g.update(step);
+    if (this.leaving) {
+      for (const g of this.leaving) {
+        if (g.active) g.update(step);
+        else this.leaving.delete(g);
+      }
+    }
 
     // ein voller Kessel blubbert vor sich hin
     if (!this.detail || !this.view) return;

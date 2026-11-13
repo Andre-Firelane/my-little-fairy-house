@@ -3,12 +3,17 @@ import { COLORS, DEPTH } from '../config/layout.js';
 // Wiederverwendbares Glitzer-System. Texturen 'sparkle' und 'star' erzeugt die BootScene.
 // parent: Container, in dem die Effekte leben (z. B. ein Raum – dann in Raum-Koordinaten und mitskaliert).
 // Detailstufe: setDetail(false) schaltet alle Effekte ab (Baum-Übersicht, dort sieht man sie ohnehin nicht).
+// { mist: true }: weiche, hellblaue Nebelwölkchen statt Glitzer (Geister) – gleiche Aufrufe, anderes Aussehen.
+const MIST = [0xe6eeff, 0xd8e4ff, 0xf2f0ff];
+
 export default class Sparkles {
-  constructor(scene, parent = null) {
+  constructor(scene, parent = null, { mist = false } = {}) {
     this.scene = scene;
     this.parent = parent;
     this.detail = true;
     this.trails = [];
+    this.mist = mist;
+    if (mist) return this.makeMist();
 
     this.glitter = this.emitter('sparkle', {
       speed: { min: 120, max: 420 },
@@ -31,6 +36,32 @@ export default class Sparkles {
       scale: { start: 0.7, end: 0 },
       gravityY: -30,
       tint: COLORS.glitter,
+    });
+  }
+
+  // Nebel: langsam aufsteigende, blasse Wölkchen (nicht additiv, damit sie auf heller Wand sichtbar bleiben)
+  makeMist() {
+    const soft = { blendMode: 'NORMAL', tint: MIST, gravityY: -30 };
+    this.glitter = this.emitter('sparkle', {
+      ...soft,
+      speed: { min: 30, max: 120 },
+      lifespan: { min: 900, max: 1500 },
+      scale: { start: 1.4, end: 2.4 },
+      alpha: { start: 0.55, end: 0 },
+    });
+    this.stars = this.emitter('sparkle', {
+      ...soft,
+      speed: { min: 10, max: 60 },
+      lifespan: { min: 1000, max: 1600 },
+      scale: { start: 1, end: 2 },
+      alpha: { start: 0.45, end: 0 },
+    });
+    this.twinkles = this.emitter('sparkle', {
+      ...soft,
+      speed: { min: 5, max: 30 },
+      lifespan: { min: 800, max: 1300 },
+      scale: { start: 0.9, end: 1.8 },
+      alpha: { start: 0.5, end: 0 },
     });
   }
 
@@ -119,6 +150,9 @@ export default class Sparkles {
 
   // Glitzerspur, die einem Objekt folgt. Rückgabe: Emitter (setFrequency/stop/start)
   trail(target) {
+    const look = this.mist
+      ? { blendMode: 'NORMAL', speed: { min: 2, max: 14 }, lifespan: { min: 700, max: 1100 }, scale: { start: 0.9, end: 1.6 }, alpha: { start: 0.4, end: 0 }, gravityY: -20, tint: MIST }
+      : {};
     const t = this.emitter(
       'sparkle',
       {
@@ -131,6 +165,7 @@ export default class Sparkles {
         alpha: { start: 0.9, end: 0 },
         gravityY: 25,
         tint: COLORS.glitter,
+        ...look,
       },
       DEPTH.trail,
     ).startFollow(target);

@@ -1,5 +1,6 @@
 import { textureKey, STICKER_PAD } from '../config/furniture.js';
 import { bake } from '../systems/bake.js';
+import { FURN_RES } from '../config/quality.js';
 import { pick, rand } from '../systems/motion.js';
 
 const WATER = 0x8fd3ff;
@@ -219,8 +220,9 @@ export default {
     const img = tub.img;
     const front = c.scene.make
       .image({ x: tub.x, y: tub.y, key: img.texture.key }, false)
-      .setOrigin(img.originX, img.originY);
-    const top = B.rimY + STICKER_PAD;
+      .setOrigin(img.originX, img.originY)
+      .setScale(1 / FURN_RES);
+    const top = (B.rimY + STICKER_PAD) * FURN_RES; // Zuschnitt in Textur-Pixeln
     front.setCrop(0, top, front.width, front.height - top);
     // Schaumkranz entlang der Öffnung (bei wenig Schaum: nur ein paar Wellen)
     const key = bake(c.scene, 'bath-foam-ring', tub.W, 40, (g) => {

@@ -14,3 +14,13 @@ export const FAIRY_PALETTES = [
   { name: 'Juna', dress: 0xff9a3c, wing: 0xd8b8ff, hair: 0xffe08a, glow: 0xffd9a0, likes: { read: 3, brew: 1, disco: 3, dance: 2 } },
   { name: 'Elli', dress: 0xc8fff0, wing: 0xff9ec7, hair: 0x6b4128, glow: 0xc8fff0, likes: { fill: 2, sleep: 2, primp: 3 } },
 ];
+
+// Kleine Geister der Geisterstunde (events/ghostHour.js): zarte Bettlaken-Farben, eigene Vorlieben.
+// sheet = Farbe des Lakens, glow = Schein, likes wie bei den Feen
+export const GHOST_PALETTES = [
+  { name: 'Huschi', sheet: 0xffffff, glow: 0xd8e4ff, likes: { light: 3, disco: 3, dance: 3, play: 2 } },
+  { name: 'Wuschel', sheet: 0xe4fff3, glow: 0xc8fff0, likes: { cook: 3, eat: 3, read: 2, light: 2 } },
+  { name: 'Flatter', sheet: 0xf1e6ff, glow: 0xe2ccff, likes: { bath: 3, primp: 3, dance: 2, light: 2 } },
+  { name: 'Buhbu', sheet: 0xe2f1ff, glow: 0xb9e0ff, likes: { play: 3, read: 3, write: 2, light: 2 } },
+  { name: 'Nebeline', sheet: 0xfff0f6, glow: 0xffd6ea, likes: { disco: 3, brew: 2, fill: 2, relax: 2 } },
+];

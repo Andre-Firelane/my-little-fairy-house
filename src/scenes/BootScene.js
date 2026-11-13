@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import { starPoints } from '../systems/draw.js';
-import { FURNITURE, CELL, STICKER_PAD, textureKey } from '../config/furniture.js';
+import { FURNITURE, CELL, STICKER_PAD, textureKey, thumbKey, cardScale } from '../config/furniture.js';
 import SPRITE_FILES from '../config/sprites.json';
 import TREE_PARTS from '../config/tree.json';
+import { FURN_RES } from '../config/quality.js';
+import { GAME_H } from '../config/layout.js';
+import { headerImage } from '../ui/header.js';
 
 // Erzeugt die wenigen Texturen per Code (keine Bilddateien nötig) und startet das Spiel.
 export default class BootScene extends Phaser.Scene {
@@ -12,6 +15,18 @@ export default class BootScene extends Phaser.Scene {
 
   // gemalte Bilder (tools/import-sprites.py): Möbel, Zimmerrahmen, Baum
   preload() {
+    // Logo zuerst: erscheint über dem Ladebalken, sobald es da ist (bleibt fürs Hauptmenü geladen)
+    this.load.image('logo', 'assets/logo.webp');
+    this.load.once('filecomplete-image-logo', () => {
+      // wie im Hauptmenü: Logo auf weißem Kopf
+      const head = headerImage(this, this.scale.width, 780).setAlpha(0);
+      this.tweens.add({ targets: head, alpha: 1, duration: 300 });
+      const logo = this.add.image(this.scale.width / 2, 380, 'logo');
+      logo.setScale(Math.min(1.3, (Math.min(this.scale.width, 1080) - 40) / logo.width, 720 / logo.height));
+      logo.setAlpha(0);
+      this.tweens.add({ targets: logo, alpha: 1, duration: 300 });
+    });
+    this.loadingBar();
     const files = new Set(['baum']);
     for (const def of Object.values(FURNITURE)) {
       if (!def.sprite) continue;
@@ -29,8 +44,49 @@ export default class BootScene extends Phaser.Scene {
     for (let i = 1; i <= (TREE_PARTS.rasen || 0); i++) this.load.image(`tree-rasen-${i}`, `assets/tree/rasen-${i}.png`);
   }
 
+  // Ladebalken (ohne Schrift): füllt sich rosa, ein Stern wandert mit
+  loadingBar() {
+    const cx = this.scale.width / 2;
+    const cy = GAME_H / 2 + 120;
+    const w = 620;
+    const h = 44;
+    const g = this.add.graphics();
+    const star = this.add.graphics();
+    const draw = (v) => {
+      g.clear();
+      g.fillStyle(0xfff4fb, 0.25);
+      g.fillRoundedRect(cx - w / 2 - 8, cy - h / 2 - 8, w + 16, h + 16, (h + 16) / 2);
+      g.fillStyle(0xff9ec7, 1);
+      if (v > 0) g.fillRoundedRect(cx - w / 2, cy - h / 2, Math.max(h, w * v), h, h / 2);
+      star.clear().fillStyle(0xfff3a8, 1);
+      star.fillPoints(starPoints(cx - w / 2 + Math.max(h, w * v) - h / 2, cy, 34, 15, 5), true);
+    };
+    draw(0);
+    this.load.on('progress', draw);
+    this.load.once('complete', () => draw(1));
+  }
+
+  // Textur eines Gegenstands (Motiv v, Zustand state) in Auflösung R:
+  // R = FURN_RES für den Raum (auf dem Tablet kleiner, siehe config/quality.js), größer für die Karten-Vorschau
+  furnTexture(g, def, key, v, state, R) {
+    const W = def.w * CELL;
+    const H = def.h * CELL;
+    if (def.sprite) {
+      const base = def.spriteVariants?.[v] ?? def.sprite;
+      const file = state ? (def.spriteStates?.[state] ?? `${base}_${state}`) : base;
+      this.spriteTexture(def, key, this.textures.exists(`spr-${file}`) ? file : base, R);
+      return;
+    }
+    g.clear();
+    if (R !== 1) g.scaleCanvas(R, R);
+    g.translateCanvas(STICKER_PAD, STICKER_PAD);
+    if (state) def.states[state](g, W, H, v);
+    else def.draw(g, W, H, v);
+    g.generateTexture(key, Math.ceil((W + STICKER_PAD * 2) * R), Math.ceil((H + STICKER_PAD * 2) * R));
+  }
+
   // Möbel-Textur aus einem gemalten Bild: unten (bzw. oben) bündig ins Rasterfeld eingepasst
-  spriteTexture(def, key, file) {
+  spriteTexture(def, key, file, R = FURN_RES) {
     const W = def.w * CELL;
     const H = def.h * CELL;
     const P = STICKER_PAD;
@@ -38,9 +94,10 @@ export default class BootScene extends Phaser.Scene {
     const s = Math.min(W / img.width, H / img.height);
     const dw = def.spriteSize?.w ?? img.width * s;
     const dh = def.spriteSize?.h ?? img.height * s;
-    const tex = this.textures.createCanvas(key, W + P * 2, H + P * 2);
+    const tex = this.textures.createCanvas(key, Math.ceil((W + P * 2) * R), Math.ceil((H + P * 2) * R));
     const ctx = tex.getContext();
     ctx.imageSmoothingQuality = 'high';
+    ctx.setTransform(R, 0, 0, R, 0, 0);
     ctx.drawImage(img, P + (W - dw) / 2, def.spriteAlign === 'top' ? P : P + H - dh, dw, dh);
     tex.refresh();
   }
@@ -66,23 +123,13 @@ export default class BootScene extends Phaser.Scene {
     // Einrichtungsgegenstände: Zeichnung → Textur (mit Rand für den Sticker-Umriss)
     // je Farbvariante und Zustand eine eigene Textur
     for (const def of Object.values(FURNITURE)) {
-      const W = def.w * CELL;
-      const H = def.h * CELL;
       for (let v = 0; v < (def.variants || 1); v++) {
         for (const state of [null, ...Object.keys(def.states || {})]) {
-          if (def.sprite) {
-            const base = def.spriteVariants?.[v] ?? def.sprite;
-            const file = state ? (def.spriteStates?.[state] ?? `${base}_${state}`) : base;
-            this.spriteTexture(def, textureKey(def.id, v, state), this.textures.exists(`spr-${file}`) ? file : base);
-            continue;
-          }
-          g.clear();
-          g.translateCanvas(STICKER_PAD, STICKER_PAD);
-          if (state) def.states[state](g, W, H, v);
-          else def.draw(g, W, H, v);
-          g.generateTexture(textureKey(def.id, v, state), W + STICKER_PAD * 2, H + STICKER_PAD * 2);
+          this.furnTexture(g, def, textureKey(def.id, v, state), v, state, FURN_RES);
         }
       }
+      // Vorschau für die Karte in der Leiste: gleich in Kartengröße, damit sie scharf bleibt (auch auf dem Tablet)
+      this.furnTexture(g, def, thumbKey(def.id), def.cardVariant ?? 0, null, cardScale(def));
     }
 
     // Zutaten-Stückchen, die eine Fee trägt (werden eingefärbt)
@@ -158,6 +205,12 @@ export default class BootScene extends Phaser.Scene {
     g.generateTexture('note', 30, 38);
     g.destroy();
 
-    this.scene.start('Tree');
+    // die großen gemalten Vorlagen werden nicht mehr gebraucht (Möbel sind jetzt eigene, passende Texturen):
+    // freigeben spart viel Grafikspeicher. Den Baum braucht noch der ferne Wald (BackScene).
+    for (const key of this.textures.getTextureKeys()) {
+      if (key.startsWith('spr-') && key !== 'spr-baum') this.textures.remove(key);
+    }
+
+    this.scene.start('Menu');
   }
 }

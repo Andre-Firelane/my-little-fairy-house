@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CELL, STICKER_PAD, textureKey, lookState } from '../config/furniture.js';
 import { drawNotes } from '../systems/chalk.js';
 import { bakedImage } from '../systems/bake.js';
+import { FURN_RES } from '../config/quality.js';
 
 const OVERLAY_MARGIN = 8; // Rand, falls eine Überlagerung etwas über die Zeichnung hinausragt
 let overlayCount = 0;
@@ -33,7 +34,7 @@ export default class Sticker extends Phaser.GameObjects.Container {
       });
       this.add(shadow.setPosition(0, -4).setScale((this.W * 0.9) / 100, 1));
     }
-    this.img = scene.make.image({ x: 0, y: 0, key: textureKey(def.id) }, false).setOrigin(0.5, oy);
+    this.img = scene.make.image({ x: 0, y: 0, key: textureKey(def.id) }, false).setOrigin(0.5, oy).setScale(1 / FURN_RES);
     this.add(this.img);
 
     // Überlagerungen (Flüssigkeit, Kreide) zeichnen in Art-Koordinaten (Ursprung oben links der Zeichnung).

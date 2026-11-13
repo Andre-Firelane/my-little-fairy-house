@@ -12,6 +12,7 @@ import primp from './primp.js';
 import { play, dance, disco } from './music.js';
 import { light, water, relax } from './home.js';
 import nightSleep from './night.js';
+import { PER_ACTIVITY, LIKED_BONUS, LIKED_AT } from '../config/dust.js';
 
 // Alle Tätigkeiten. Neue einfach hier eintragen:
 // { id, icon, uses(def) → passt zu diesem Gegenstand?, available?(sticker, director) → gerade möglich?, run(c, sticker) }
@@ -32,9 +33,10 @@ export default class ActivityDirector {
 
   update(dt) {
     const night = this.scene.clock?.night;
-    for (const f of this.life.fairies) {
+    // Geister (Geisterstunde) beschäftigen sich wie Feen am Tag – sie gehen nicht ins Bett
+    for (const f of [...this.life.fairies, ...this.life.ghosts]) {
       if (this.jobs.has(f) || f.state !== 'wander') continue;
-      if (night) {
+      if (night && !f.isGhost) {
         this.goToBed(f);
         continue;
       }
@@ -115,11 +117,24 @@ export default class ActivityDirector {
     if (this.jobs.get(job.f) !== job) return;
     this.jobs.delete(job.f);
     if (cleanup) job.ctx.cleanup();
-    else job.ctx.release();
+    else {
+      job.ctx.release();
+      this.reward(job);
+    }
     job.f.dropCarry();
     job.f.resetPose();
     job.f.wander();
     this.idle.set(job.f, rand(3, 7));
+  }
+
+  // fertige Tätigkeit einer Fee → Feenstaub (Lieblingstätigkeit: mehr); Geister und die Nachtruhe bringen nichts
+  reward(job) {
+    const { f, activity } = job;
+    if (f.isGhost || activity.id === 'night' || !this.life.view) return;
+    const liked = (f.palette.likes?.[activity.id] ?? 1) >= LIKED_AT;
+    const amount = PER_ACTIVITY * (liked ? LIKED_BONUS : 1);
+    const w = this.life.view.toWorld(f.x, f.y - 20);
+    this.scene.giveDust?.(amount, w.x, w.y);
   }
 
   abort(f) {

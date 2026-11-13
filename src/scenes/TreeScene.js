@@ -14,8 +14,14 @@ import DayNight from '../systems/dayNight.js';
 import { paintTiles } from '../systems/bake.js';
 import TREE_PARTS from '../config/tree.json';
 import { BG_RES } from '../config/quality.js';
-import { createRoom, house } from '../state/house.js';
+import { createRoom, house, snapshot } from '../state/house.js';
 import Residents from '../life/Residents.js';
+import Fairy from '../objects/Fairy.js';
+import Ghost from '../objects/Ghost.js';
+import { FAIRY_PALETTES, GHOST_PALETTES } from '../config/fairies.js';
+import { dust } from '../state/dust.js';
+import { saveHandlers, setupAutosave } from '../state/save.js';
+import { eventById } from '../events/index.js';
 
 const DETAIL_ZOOM = 1.1;
 const SIDE_MEADOW = 3200; // so breit reicht die Wiese im Querformat links und rechts über den Baum hinaus // ab dieser Vergrößerung zeigen Räume im Baum Glitzer & Co.
@@ -29,17 +35,20 @@ export default class TreeScene extends Phaser.Scene {
     super('Tree');
   }
 
-  create() {
+  // data.load: der Spielstand liegt schon im Haus (state/save.js → loadSave), seine Räume werden hier aufgebaut
+  create(data = {}) {
     this.drawTree();
     // Tag und Nacht: nachts legt sich ein dunkelblauer Schleier über Baum und leere Höhlen
     // (die Räume dunkeln sich selbst ab, siehe life/RoomLife.js – so leuchten ihre Lampen)
-    this.clock = new DayNight();
+    this.clock = new DayNight(data.load ? house.clockT : 0);
     this.nightVeil = this.add
       .rectangle(-6000, -4000, WORLD_W + 12000, WORLD_H + 8000, 0x1d1846, 1)
       .setOrigin(0)
       .setAlpha(0)
       .setDepth(DEPTH.slot + 0.5);
 
+    Fairy.prebake(this, FAIRY_PALETTES);
+    Ghost.prebake(this, GHOST_PALETTES);
     this.sparkles = new Sparkles(this);
     this.slots = SLOTS.map((d) => new Slot(this, d));
     this.placement = new Placement(this);
@@ -49,6 +58,30 @@ export default class TreeScene extends Phaser.Scene {
     this.residents = new Residents(this); // alle Feen des Hauses (Einzug, Zimmerwechsel)
     this.mode = 'tree';
     this.activeRoom = null;
+    this.happening = null; // laufendes Event (z. B. Geisterstunde)
+
+    // gespeicherte Räume wieder in ihre Höhlen setzen; die Feen ziehen dann von selbst wieder ein (Residents)
+    if (data.load) {
+      for (const state of house.rooms.values()) {
+        const slot = this.slots.find((s) => s.id === state.slotId);
+        const def = roomById(state.type);
+        if (!slot || !def || slot.room) {
+          house.rooms.delete(state.slotId);
+          continue;
+        }
+        const room = this.makeRoom(slot, def, state, slot.x, slot.y);
+        slot.room = room;
+        room.glowOn();
+        this.rooms.push(room);
+      }
+    }
+
+    // Speichern: so legt das Spiel seinen Stand ab (state/save.js)
+    saveHandlers.snapshot = () => snapshot(this.clock.t);
+    setupAutosave();
+    this.events.once('shutdown', () => {
+      if (saveHandlers.snapshot) saveHandlers.snapshot = null;
+    });
     this.placement.on('selection', (id) => this.slots.forEach((s) => s.setPulse(!!id)));
 
     // Kamera: eigener Zustand (Mitte + Zoom), wird in apply() auf die Phaser-Kamera übertragen
@@ -62,6 +95,10 @@ export default class TreeScene extends Phaser.Scene {
 
     this.scene.launch('Back');
     this.scene.launch('UI');
+    this.scene.launch('Hud');
+
+    // zum Testen: ?event=geister startet die Geisterstunde gleich (kostenlos)
+    if (new URLSearchParams(location.search).get('event') === 'geister') this.time.delayedCall(3500, () => this.startHappening('ghost'));
 
     // Fenster geändert (Hoch-/Querformat): Wiese an den Seiten ergänzen, Kamera neu begrenzen
     this.paintSideMeadows();
@@ -110,6 +147,37 @@ export default class TreeScene extends Phaser.Scene {
       room.life.update(dt, onScreen);
     }
     this.residents.update(dt);
+
+    if (this.happening) {
+      this.happening.update(dt);
+      if (this.happening.done) {
+        this.happening = null;
+        this.events.emit('happening', null);
+      }
+    }
+  }
+
+  // ---------- Feenstaub und Events ----------
+
+  // eine Fee hat etwas fertig gemacht: Staub ins Glas (fliegt sichtbar von der Fee dorthin, siehe HudScene)
+  giveDust(amount, wx, wy) {
+    const added = dust.add(amount);
+    if (added <= 0) return;
+    const v = this.camView;
+    this.events.emit('dust', added, (wx - v.x) * v.zoom + GAME_W / 2, (wy - v.y) * v.zoom + GAME_H / 2);
+  }
+
+  // Event starten (bezahlt hat die HudScene schon); false, wenn gerade keins möglich ist
+  startHappening(id) {
+    const ev = eventById(id);
+    if (this.happening || this.clock.night || !ev) return false;
+    this.happening = new ev.Happening(this);
+    this.events.emit('happening', id);
+    return true;
+  }
+
+  canStartHappening() {
+    return !this.happening && !this.clock.night;
   }
 
   // ---------- Kamera ----------
@@ -272,11 +340,7 @@ export default class TreeScene extends Phaser.Scene {
     slot.setPulse(false);
     slot.setHover(false);
 
-    const room = new Room(this, def, fromX, fromY, createRoom(slot.id, def, slot.geo), slot.geo).setScale(0.75);
-    room.on('pointerup', () => {
-      if (this.mode !== 'tree' || !this.drag || this.drag.moved || this.pinch || this.transitioning || slot.room !== room) return;
-      this.openRoom(slot);
-    });
+    const room = this.makeRoom(slot, def, createRoom(slot.id, def, slot.geo), fromX, fromY).setScale(0.75);
 
     // Snap: zum Slot gleiten, dann elastisch aufploppen + Glitzer
     this.tweens.add({
@@ -294,6 +358,16 @@ export default class TreeScene extends Phaser.Scene {
         this.rooms.push(room);
       },
     });
+  }
+
+  // Raum für eine Höhle bauen (neu gelegt oder aus dem Spielstand); antippen = hineinzoomen
+  makeRoom(slot, def, state, x, y) {
+    const room = new Room(this, def, x, y, state, slot.geo);
+    room.on('pointerup', () => {
+      if (this.mode !== 'tree' || !this.drag || this.drag.moved || this.pinch || this.transitioning || slot.room !== room) return;
+      this.openRoom(slot);
+    });
+    return room;
   }
 
   // ---------- Raum betreten / verlassen ----------
@@ -323,6 +397,8 @@ export default class TreeScene extends Phaser.Scene {
     // Raum-Mitte soll auf dem Bildschirm bei EDIT_ROOM_Y liegen (unten ist die Leiste)
     this.flyTo(this.roomView(slot), 600, 0, () => (this.transitioning = false));
     this.scene.launch('RoomEdit', { slotId: slot.id });
+    this.scene.bringToTop('Hud'); // das Feenstaub-Glas bleibt sichtbar
+    this.events.emit('mode', 'room');
   }
 
   // wieder herauszoomen in den Baum, dorthin, wo man vorher war
@@ -333,6 +409,7 @@ export default class TreeScene extends Phaser.Scene {
     room?.light.setVisible(true);
     this.halos.forEach((h) => h.setVisible(true));
     this.scene.wake('UI');
+    this.events.emit('mode', 'tree');
     this.flyTo(this.prevView, 600, 0, () => {
       this.mode = 'tree';
       this.transitioning = false;

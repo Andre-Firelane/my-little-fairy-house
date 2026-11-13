@@ -3,6 +3,7 @@ import { ROOM_W, ROOM_H, DEPTH, TREE_SCALE } from '../config/layout.js';
 import { CELL, STICKER_PAD, textureKey, furnitureById } from '../config/furniture.js';
 import RoomLife from '../life/RoomLife.js';
 import RoomView from './RoomView.js';
+import { FURN_RES } from '../config/quality.js';
 
 // Vorschaubild eines Raumtyps (Karten in der Leiste, Ghost beim Ziehen): gemalter Zimmerrahmen,
 // Wand in der Farbe des Typs, davor typische Möbel als gemalte Sprites (def.preview, siehe config/rooms.js).
@@ -48,7 +49,7 @@ export function roomArtImage(scene, def) {
     const size = (id) => {
       const img = scene.textures.get(textureKey(id)).getSourceImage();
       const s = cell / CELL;
-      return { img, w: img.width * s, h: img.height * s, pad: STICKER_PAD * s };
+      return { img, w: (img.width * s) / FURN_RES, h: (img.height * s) / FURN_RES, pad: STICKER_PAD * s };
     };
     const total = floor.reduce((n, e) => n + size(e.id).w - size(e.id).pad * 2, 0) + gap * (floor.length - 1);
     let x = W / 2 - total / 2;

@@ -8,6 +8,7 @@ export let GAME_W = UI_W; // aktuelle Breite der Spielfläche (ändert sich mit 
 
 // passende Spielbreite für das Fenster: Hochformat = UI_W, Querformat = Seitenverhältnis des Fensters
 export function fitWidth() {
+  if (matchMedia('(pointer: coarse)').matches) return UI_W; // Tablet/Handy: immer Hochformat
   const aspect = window.innerWidth / Math.max(1, window.innerHeight);
   if (aspect <= 1) return UI_W;
   return Math.round(Math.min(Math.max(GAME_H * aspect, UI_W), GAME_H * 2));

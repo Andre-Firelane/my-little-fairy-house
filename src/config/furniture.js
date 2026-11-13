@@ -1282,6 +1282,11 @@ export const FURNITURE = {
 export const furnitureById = (id) => FURNITURE[id];
 export const textureKey = (id, v = 0, state = null) => `furn-${id}${v ? `-${v}` : ''}${state ? `@${state}` : ''}`;
 
+// Vorschau auf der Karte in der Leiste (Einrichten): passt in 150×190, kleine Dinge bis 1,5-fach vergrößert
+export const thumbKey = (id) => `thumb-${id}`;
+export const cardScale = (def) =>
+  Math.min(150 / (def.w * CELL + STICKER_PAD * 2), 190 / (def.h * CELL + STICKER_PAD * 2), 1.5);
+
 // welcher Zustand (Textur) gehört zu einem Item?
 export function lookState(def, item = {}) {
   if (item.state) return item.state;

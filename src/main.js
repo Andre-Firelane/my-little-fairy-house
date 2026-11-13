@@ -5,6 +5,8 @@ import BackScene from './scenes/BackScene.js';
 import TreeScene from './scenes/TreeScene.js';
 import UIScene from './scenes/UIScene.js';
 import RoomEditScene from './scenes/RoomEditScene.js';
+import HudScene from './scenes/HudScene.js';
+import MenuScene from './scenes/MenuScene.js';
 import { setupFullscreen } from './ui/fullscreen.js';
 
 setupFullscreen();
@@ -22,7 +24,7 @@ const game = new Phaser.Game({
     height: GAME_H,
   },
   input: { activePointers: 3 },
-  scene: [BootScene, BackScene, TreeScene, UIScene, RoomEditScene],
+  scene: [BootScene, MenuScene, BackScene, TreeScene, UIScene, RoomEditScene, HudScene],
 });
 
 // Fenstergröße/Drehung geändert: Spielfläche an das neue Seitenverhältnis anpassen

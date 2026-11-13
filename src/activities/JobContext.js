@@ -19,7 +19,7 @@ export default class JobContext {
     this.scene = director.scene; // für Zeit, Tweens und neue Bilder
     this.view = director.life.view;
     this.geo = director.life.view?.geo; // Maße und Form des Raums
-    this.sparkles = director.life.sparkles;
+    this.sparkles = fairy.sparkles; // Feen glitzern, Geister nebeln (siehe RoomLife.mist)
     this.f = fairy;
     this.token = token;
     this.held = []; // reservierte Item-uids

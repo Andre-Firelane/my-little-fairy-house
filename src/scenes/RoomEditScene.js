@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, UI_W, TRAY_TOP, SWATCH_Y, WALL_COLORS, uiLeft } from '../config/layout.js';
 import { roomById, ROOMS } from '../config/rooms.js';
-import { furnitureById, textureKey, CELL, STICKER_PAD } from '../config/furniture.js';
+import { furnitureById, thumbKey } from '../config/furniture.js';
 import { newUid } from '../state/house.js';
 import { findSpot, findFreeSpot, childrenOf } from '../systems/roomGrid.js';
 import { popIn, squish, wobble } from '../systems/juice.js';
@@ -194,10 +194,7 @@ export default class RoomEditScene extends Phaser.Scene {
 
   makeCard(def, x, y) {
     const c = this.add.container(x, y);
-    const tw = def.w * CELL + STICKER_PAD * 2;
-    const th = def.h * CELL + STICKER_PAD * 2;
-    const s = Math.min(150 / tw, 190 / th, 1.5);
-    const img = this.add.image(0, 0, textureKey(def.id, def.cardVariant ?? 0)).setScale(s);
+    const img = this.add.image(0, 0, thumbKey(def.id)); // schon in Kartengröße gebacken (BootScene)
     c.add([cardImage(this, CARD_W, CARD_H, 26, this.typeDef.accent), img]);
     c.setSize(CARD_W, CARD_H).setInteractive();
     c.def = def;
@@ -223,7 +220,8 @@ export default class RoomEditScene extends Phaser.Scene {
     if (p.y > SWATCH_Y - 60) return; // Farbleiste: Antippen machen die Farbtupfer selbst
     const l = this.local(p.x, p.y);
     // Feen liegen über den Möbeln, also zuerst prüfen
-    const fairy = this.life.fairies.find((f) => Phaser.Math.Distance.Between(l.x, l.y, f.x, f.y) < FAIRY_GRAB);
+    // (Geister der Geisterstunde lassen sich genauso hochheben)
+    const fairy = [...this.life.fairies, ...this.life.ghosts].find((f) => Phaser.Math.Distance.Between(l.x, l.y, f.x, f.y) < FAIRY_GRAB);
     if (fairy) {
       this.press = { source: 'fairy', fairy, x0: p.x, y0: p.y, drag: false };
       return;
@@ -323,12 +321,12 @@ export default class RoomEditScene extends Phaser.Scene {
     const d = this.life.director;
     if (!press.drag) {
       squish(this.tree, f, { amount: 0.15 });
-      this.life.sparkles.twinkle(f.x, f.y - 20, 3);
+      f.sparkles.twinkle(f.x, f.y - 20, 3);
       d.tap(f);
       return;
     }
     const t = press.target;
-    if (t && d.start(f, d.activityFor(t), t)) this.life.sparkles.twinkle(f.x, f.y, 6);
+    if (t && d.start(f, d.activityFor(t), t)) f.sparkles.twinkle(f.x, f.y, 6);
     else f.wander();
   }
 

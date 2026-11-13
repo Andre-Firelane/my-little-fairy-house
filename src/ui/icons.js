@@ -64,6 +64,107 @@ const ICONS = {
     g.fillCircle(29.7, -29.7, 10);
   },
 
+  // ---- Menü und Feenstaub ----
+
+  // weiterspielen: dicker Play-Pfeil
+  play(g) {
+    g.fillStyle(0x5fc98a, 1);
+    g.fillPoints([{ x: -26, y: -40 }, { x: 40, y: 0 }, { x: -26, y: 40 }], true);
+    g.fillCircle(-22, -34, 8);
+    g.fillCircle(-22, 34, 8);
+    g.fillCircle(34, 0, 8);
+  },
+
+  // neues Spiel: großer Stern mit kleinem Funkeln
+  new(g) {
+    g.fillStyle(0xffc94d, 1);
+    fillStar(g, -4, 4, 42, 18, 5);
+    g.fillStyle(0xff9ec7, 1);
+    fillStar(g, 34, -32, 12, 5, 4);
+  },
+
+  // Test-Spiel: Reagenzglas mit Blasen
+  test(g) {
+    g.fillStyle(0x8a8070, 1);
+    g.fillRoundedRect(-18, -46, 36, 10, 5);
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(-14, -40, 28, 80, { tl: 2, tr: 2, bl: 14, br: 14 });
+    g.fillStyle(0x7fd8a8, 1);
+    g.fillRoundedRect(-14, 2, 28, 38, { tl: 0, tr: 0, bl: 14, br: 14 });
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(-4, 14, 4);
+    g.fillCircle(5, 26, 3);
+    g.lineStyle(4, 0x8a8070, 1);
+    g.strokeRoundedRect(-14, -40, 28, 80, { tl: 2, tr: 2, bl: 14, br: 14 });
+  },
+
+  // Menü: drei dicke Striche
+  menu(g) {
+    g.fillStyle(INK, 1);
+    for (const y of [-26, 0, 26]) g.fillRoundedRect(-36, y - 8, 72, 16, 8);
+  },
+
+  // speichern: Truhe mit Herz
+  save(g) {
+    g.fillStyle(0xc98b5a, 1);
+    g.fillRoundedRect(-42, -30, 84, 30, { tl: 18, tr: 18, bl: 0, br: 0 });
+    g.fillStyle(0xa86d40, 1);
+    g.fillRect(-42, 0, 84, 36);
+    g.fillStyle(0xffd166, 1);
+    g.fillRect(-42, -4, 84, 8);
+    g.fillRoundedRect(-9, -8, 18, 20, 4);
+    g.fillStyle(0xff7ab8, 1);
+    g.fillCircle(-7, 20, 7);
+    g.fillCircle(7, 20, 7);
+    g.fillTriangle(-14, 22, 14, 22, 0, 36);
+  },
+
+  // zum Hauptmenü: Häuschen
+  home(g) {
+    g.fillStyle(0xe0566f, 1);
+    g.fillTriangle(-48, -2, 0, -44, 48, -2);
+    g.fillStyle(0xfff4fb, 1);
+    g.fillRect(-34, -4, 68, 46);
+    g.fillStyle(0xc98b5a, 1);
+    g.fillRoundedRect(-10, 12, 20, 30, { tl: 10, tr: 10, bl: 0, br: 0 });
+    g.lineStyle(4, INK, 1);
+    g.strokeRect(-34, -4, 68, 46);
+  },
+
+  // geklappt: grüner Haken
+  check(g) {
+    g.fillStyle(0x5fc98a, 1);
+    rotRect(g, -16, 10, 40, 18, Math.PI / 4);
+    rotRect(g, 12, -2, 70, 18, -Math.PI / 3.2);
+  },
+
+  // Geisterstunde: kleiner Geist vor dem Mond
+  ghost(g) {
+    g.fillStyle(0xffd166, 1);
+    g.fillPoints(crescent({ x: 22, y: -22, r: 24 }, { x: 34, y: -32, r: 20 }), true);
+    const pts = [];
+    for (let i = 0; i <= 16; i++) {
+      const a = Math.PI + (i / 16) * Math.PI;
+      pts.push({ x: -6 + Math.cos(a) * 30, y: -2 + Math.sin(a) * 32 });
+    }
+    for (let i = 0; i <= 18; i++) {
+      const x = 24 - (i / 18) * 60;
+      pts.push({ x, y: 40 + Math.sin((i / 18) * Math.PI * 3) * 6 });
+    }
+    g.fillStyle(0xffffff, 1);
+    g.fillPoints(pts, true);
+    g.lineStyle(4, 0xb8c4e8, 1);
+    g.strokePoints(pts, true);
+    g.fillStyle(0x3b2a4a, 1);
+    g.fillEllipse(-16, -6, 10, 14);
+    g.fillEllipse(4, -6, 10, 14);
+    g.fillStyle(0xff8fa8, 0.6);
+    g.fillCircle(-24, 8, 5);
+    g.fillCircle(12, 8, 5);
+    g.fillStyle(0x6a4a7a, 1);
+    g.fillEllipse(-6, 12, 8, 10);
+  },
+
   // ---- Zimmerarten ----
 
   // Schlafzimmer: Mondsichel mit Sternen

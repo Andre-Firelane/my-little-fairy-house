@@ -39,7 +39,8 @@ export default class Fairy extends Phaser.GameObjects.Container {
     this.wingL = this.makeWing(-1);
     this.wingR = this.makeWing(1);
     this.outfit = 'dress';
-    this.body = bakedImage(scene, this.bodyKey('dress'), 50, 76, (g) => this.drawBody(g, 'dress'), { ox: 18, oy: 42, res: FAIRY_RES });
+    const B = this.bodyBox();
+    this.body = bakedImage(scene, this.bodyKey('dress'), B.w, B.h, (g) => this.drawBody(g, 'dress'), { ox: B.ox, oy: B.oy, res: FAIRY_RES });
     this.visual.add([glow, this.wingL, this.wingR, this.body]);
     this.add(this.visual);
     this.setScale(scale).setDepth(DEPTH.fairy);
@@ -49,6 +50,17 @@ export default class Fairy extends Phaser.GameObjects.Container {
 
     this.trail = sparkles.trail(this);
     this.trail.setFrequency(110);
+  }
+
+  // alle Feen-Texturen (Flügel, Kleid, Schlafanzug) vorab backen, damit später nichts mehr ruckelt
+  static prebake(scene, palettes) {
+    for (const palette of palettes) {
+      const f = { scene, palette, bodyKey: Fairy.prototype.bodyKey, drawBody: Fairy.prototype.drawBody };
+      for (const side of [-1, 1]) Fairy.prototype.makeWing.call(f, side).destroy();
+      for (const outfit of ['dress', 'pj']) {
+        bake(scene, f.bodyKey(outfit), 50, 76, (g) => f.drawBody(g, outfit), 18, 42, FAIRY_RES);
+      }
+    }
   }
 
   // Flügel mit Ursprung an der Schulter, damit scaleX um die Schulter "klappt"
@@ -64,6 +76,11 @@ export default class Fairy extends Phaser.GameObjects.Container {
     }, { ox: side < 0 ? 50 : 2, oy: 32, res: FAIRY_RES });
     img.y = -2;
     return img;
+  }
+
+  // Größe der gebackenen Körper-Textur und wo darin der Zeichnungs-Ursprung liegt (Geister: eigene Maße)
+  bodyBox() {
+    return { w: 50, h: 76, ox: 18, oy: 42 };
   }
 
   bodyKey(outfit) {
