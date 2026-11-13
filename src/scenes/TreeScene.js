@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   GAME_W, GAME_H, BAR_TOP, BAR_H, WORLD_W, WORLD_H, MIN_ZOOM, MAX_ZOOM, START_ZOOM,
-  SLOTS, DEPTH, COLORS, EDIT_ROOM_Y, SWATCH_Y, UI_W,
+  SLOTS, DEPTH, COLORS, TREE_SCALE, EDIT_ROOM_Y, SWATCH_Y, UI_W,
 } from '../config/layout.js';
 import { roomById } from '../config/rooms.js';
 import Slot from '../objects/Slot.js';
@@ -15,6 +15,10 @@ import { paintTiles } from '../systems/bake.js';
 import TREE_PARTS from '../config/tree.json';
 import { BG_RES } from '../config/quality.js';
 import { createRoom, house, snapshot } from '../state/house.js';
+import { CELL } from '../config/furniture.js';
+import {
+  TRUNK_X, TRUNK_TOP, GROUND_Y, sway, halfWidth, trunkOutline, BRANCHES, ROOTS, CROWN, WINDOWS, DOOR, bez, OX, OY,
+} from '../config/treeShape.js';
 import Residents from '../life/Residents.js';
 import Fairy from '../objects/Fairy.js';
 import Ghost from '../objects/Ghost.js';
@@ -91,7 +95,7 @@ export default class TreeScene extends Phaser.Scene {
     this.setupInput();
 
     // Kamerafahrt von der Krone hinunter zu den ersten Höhlen
-    this.flyTo({ x: WORLD_W / 2, y: 1950, zoom: START_ZOOM }, 2600, 500);
+    this.flyTo({ x: WORLD_W / 2, y: 1950 + OY, zoom: START_ZOOM }, 2600, 500);
 
     this.scene.launch('Back');
     this.scene.launch('UI');
@@ -448,16 +452,16 @@ export default class TreeScene extends Phaser.Scene {
   // Querformat: die Wiese geht links und rechts des Baums weiter (nur gemalt, wenn man sie sehen kann)
   paintSideMeadows() {
     if (this.sideMeadows || GAME_W <= UI_W) return;
-    const y0 = 4600;
+    const y0 = 4600 + OY;
     const paint = (x0) => (ctx) => {
       const { grass, grassFront } = this.grassPatterns(ctx);
-      meadow(ctx, grass, 4690, 22, x0, x0 + SIDE_MEADOW);
-      meadow(ctx, grassFront, 4735, 14, x0, x0 + SIDE_MEADOW);
+      meadow(ctx, grass, 4690 + OY, 22, x0, x0 + SIDE_MEADOW);
+      meadow(ctx, grassFront, 4735 + OY, 14, x0, x0 + SIDE_MEADOW);
       const rng = makeRng(x0 < 0 ? 31 : 37);
       for (let i = 0; i < 80; i++) {
         ctx.fillStyle = ['#ffffff', '#ffd166', '#ff9ec7'][i % 3];
         ctx.beginPath();
-        ctx.arc(x0 + rng() * SIDE_MEADOW, 4770 + rng() * 210, 6 + rng() * 5, 0, Math.PI * 2);
+        ctx.arc(x0 + rng() * SIDE_MEADOW, 4770 + OY + rng() * 210, 6 + rng() * 5, 0, Math.PI * 2);
         ctx.fill();
       }
     };
@@ -471,8 +475,9 @@ export default class TreeScene extends Phaser.Scene {
   drawTree() {
     const bark = this.textures.get('tree-rinde-1').getSourceImage();
     const crowns = TREE_PARTS_KEYS.map((k) => this.textures.get(k).getSourceImage());
-    const shaded = crowns.map((img) => darken(img, 'rgba(25, 45, 40, 0.28)'));
+    const shaded = crowns.map((img) => darken(img, 'rgba(25, 45, 40, 0.3)'));
     const pieces = crownLayout(crowns.length);
+    const house = SLOTS.find((s) => s.treehouse);
     paintTiles(this, 'tree', WORLD_W, WORLD_H, (ctx) => {
       const rng = makeRng(11);
       const barkFill = ctx.createPattern(bark, 'repeat');
@@ -481,63 +486,79 @@ export default class TreeScene extends Phaser.Scene {
       const outline = '#4a2a18';
 
       // Wiese hinter dem Baum (gemalter Rasen, leicht hügelige Oberkante)
-      meadow(ctx, grass, 4690, 22);
+      meadow(ctx, grass, 4690 + OY, 22);
+      // ab hier in Baum-Koordinaten (config/treeShape.js)
+      ctx.save();
+      ctx.translate(OX, OY);
+      bushes(ctx, makeRng(4));
 
-      // Äste (stecken in der Krone): dunkle Kante, darüber Rinde
-      const branch = (x0, y0, x1, y1, wdt) => {
-        ctx.lineCap = 'round';
+      // Holz: Äste mit Zweigen, Wurzeln und Stamm – erst alle dunklen Kanten, dann die Rinde darüber,
+      // so wachsen die Teile ohne Naht ineinander
+      const shapes = [];
+      for (const b of BRANCHES) {
+        shapes.push(taper(b.p, b.w0, b.w1));
+        for (const k of b.kids || []) {
+          const s = bez(b.p, k.t);
+          shapes.push(taper([[s.x, s.y], ...k.to], k.w, k.w * 0.3));
+        }
+      }
+      for (const r of ROOTS) shapes.push(taper(r.p, r.w0, r.w1));
+      const trunk = trunkOutline();
+      shapes.push(trunk);
+      ctx.lineJoin = 'round';
+      for (const s of shapes) {
+        path(ctx, s);
+        ctx.lineWidth = 16;
         ctx.strokeStyle = outline;
-        ctx.lineWidth = wdt + 14;
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
         ctx.stroke();
-        ctx.strokeStyle = barkFill;
-        ctx.lineWidth = wdt;
-        ctx.stroke();
-      };
-      branch(900, 1200, 420, 650, 120);
-      branch(1500, 1200, 1980, 620, 120);
-      branch(1200, 1150, 1200, 420, 130);
-      branch(640, 860, 300, 760, 80);
-      branch(1760, 840, 2120, 780, 80);
-
-      // Stamm mit Wurzeln: weiche Kontur, Rinde, seitlich abgedunkelt (wirkt rund)
-      ctx.beginPath();
-      TRUNK.forEach((p, i) => {
-        const n = TRUNK[(i + 1) % TRUNK.length];
-        const mx = (p.x + n.x) / 2;
-        const my = (p.y + n.y) / 2;
-        if (i === 0) ctx.moveTo(mx, my);
-        else ctx.quadraticCurveTo(p.x, p.y, mx, my);
-      });
-      const p0 = TRUNK[0];
-      const n0 = TRUNK[1];
-      ctx.quadraticCurveTo(p0.x, p0.y, (p0.x + n0.x) / 2, (p0.y + n0.y) / 2);
-      ctx.closePath();
-      ctx.lineWidth = 16;
-      ctx.strokeStyle = outline;
-      ctx.stroke();
-      ctx.fillStyle = barkFill;
-      ctx.fill();
-      const shade = ctx.createLinearGradient(420, 0, 1990, 0);
-      shade.addColorStop(0, 'rgba(40, 20, 10, 0.5)');
-      shade.addColorStop(0.18, 'rgba(40, 20, 10, 0)');
-      shade.addColorStop(0.8, 'rgba(40, 20, 10, 0)');
-      shade.addColorStop(1, 'rgba(40, 20, 10, 0.55)');
-      ctx.fillStyle = shade;
-      ctx.fill();
-
-      // Grassaum vor den Wurzeln: der Baum steht im Gras, nicht darauf
-      meadow(ctx, grassFront, 4735, 14);
-      for (let i = 0; i < 60; i++) {
-        ctx.fillStyle = ['#ffffff', '#ffd166', '#ff9ec7'][i % 3];
-        ctx.beginPath();
-        ctx.arc(rng() * WORLD_W, 4770 + rng() * 210, 6 + rng() * 5, 0, Math.PI * 2);
+      }
+      for (const s of shapes) {
+        path(ctx, s);
+        ctx.fillStyle = barkFill;
         ctx.fill();
       }
 
-      // Krone: hinten dunkler, vorne hell
+      // Stamm: rund schattiert, unten wärmer und dunkler, Maserung folgt dem Schwung
+      ctx.save();
+      path(ctx, trunk);
+      ctx.clip();
+      const side = ctx.createLinearGradient(TRUNK_X - 820, 0, TRUNK_X + 820, 0);
+      side.addColorStop(0, 'rgba(40, 20, 10, 0.55)');
+      side.addColorStop(0.2, 'rgba(40, 20, 10, 0)');
+      side.addColorStop(0.42, 'rgba(255, 220, 170, 0.12)');
+      side.addColorStop(0.8, 'rgba(40, 20, 10, 0)');
+      side.addColorStop(1, 'rgba(40, 20, 10, 0.6)');
+      ctx.fillStyle = side;
+      ctx.fillRect(-OX, -OY, WORLD_W, WORLD_H);
+      const warm = ctx.createLinearGradient(0, 3200, 0, GROUND_Y);
+      warm.addColorStop(0, 'rgba(120, 50, 20, 0)');
+      warm.addColorStop(1, 'rgba(110, 45, 15, 0.28)');
+      ctx.fillStyle = warm;
+      ctx.fillRect(-OX, 3200, WORLD_W, GROUND_Y - 3100);
+      ctx.lineWidth = 7;
+      ctx.strokeStyle = 'rgba(55, 28, 12, 0.22)';
+      for (let k = 0; k < 15; k++) {
+        const x0 = TRUNK_X - 720 + k * 103;
+        ctx.beginPath();
+        for (let y = TRUNK_TOP; y <= GROUND_Y; y += 30) {
+          const x = x0 + sway(y) + 16 * Math.sin(y / 150 + k * 1.7);
+          if (y === TRUNK_TOP) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Moos auf den Wurzeln, Efeu an den Stammkanten
+      for (const r of ROOTS) moss(ctx, r, makeRng(r.p[0][0]));
+      ivy(ctx, -1, 4620, 3250, makeRng(21));
+      ivy(ctx, 1, 4640, 3850, makeRng(22));
+
+      // runde Fenster zwischen den Räumen, Tür am Stammfuß
+      for (const w of WINDOWS) roundWindow(ctx, w.x + sway(w.y), w.y, w.r);
+      door(ctx, DOOR.x + sway(DOOR.y - 200), DOOR.y, DOOR.w, DOOR.h);
+
+      // Krone: Blätterbüschel an den Astenden (hinten dunkler, vorne hell)
       for (const pc of pieces) {
         const img = (pc.back ? shaded : crowns)[pc.i];
         const w = img.width * pc.s;
@@ -547,6 +568,19 @@ export default class TreeScene extends Phaser.Scene {
         if (pc.flip) ctx.scale(-1, 1);
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
         ctx.restore();
+      }
+
+      // Baumhaus: Plattform mit Streben auf dem Ast, Strickleiter
+      if (house) platform(ctx, { ...house, x: house.x - OX, y: house.y - OY });
+      ctx.restore();
+
+      // Grassaum vor den Wurzeln: der Baum steht im Gras, nicht darauf
+      meadow(ctx, grassFront, 4735 + OY, 14);
+      for (let i = 0; i < 90; i++) {
+        ctx.fillStyle = ['#ffffff', '#ffd166', '#ff9ec7', '#c9a6ff'][i % 4];
+        ctx.beginPath();
+        ctx.arc(rng() * WORLD_W, 4770 + OY + rng() * 210, 6 + rng() * 5, 0, Math.PI * 2);
+        ctx.fill();
       }
     }, { res: BG_RES, depth: DEPTH.tree });
     this.halos = []; // Lichter hängen jetzt gemalt an der Krone
@@ -575,12 +609,372 @@ function meadow(ctx, pattern, top, wave, x0 = 0, x1 = WORLD_W) {
   ctx.stroke();
 }
 
-// Stammumriss (Weltkoordinaten), wird weich gerundet gezeichnet
-const TRUNK = [
-  { x: 560, y: 760 }, { x: 1840, y: 760 }, { x: 1930, y: 1150 }, { x: 1950, y: 2000 }, { x: 1960, y: 3000 }, { x: 1970, y: 4150 },
-  { x: 2070, y: 4480 }, { x: 2350, y: 4720 }, { x: 1750, y: 4690 }, { x: 1200, y: 4740 }, { x: 680, y: 4690 },
-  { x: 50, y: 4720 }, { x: 330, y: 4480 }, { x: 430, y: 4150 }, { x: 440, y: 3000 }, { x: 450, y: 2000 }, { x: 470, y: 1150 },
-];
+function path(ctx, pts) {
+  ctx.beginPath();
+  pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+  ctx.closePath();
+}
+
+// Ast als sich verjüngende Form entlang einer Bézier-Kurve (mit runder Spitze)
+function taper(p, w0, w1, n = 28) {
+  const left = [];
+  const right = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const a = bez(p, Math.max(0, t - 0.01));
+    const b = bez(p, Math.min(1, t + 0.01));
+    const c = bez(p, t);
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const nx = -(b.y - a.y) / len;
+    const ny = (b.x - a.x) / len;
+    const w = (w0 + (w1 - w0) * t ** 0.8) / 2;
+    left.push({ x: c.x + nx * w, y: c.y + ny * w });
+    right.push({ x: c.x - nx * w, y: c.y - ny * w });
+  }
+  // runde Spitze
+  const tip = bez(p, 1);
+  const pre = bez(p, 0.97);
+  const d = Math.hypot(tip.x - pre.x, tip.y - pre.y) || 1;
+  const capPt = { x: tip.x + ((tip.x - pre.x) / d) * w1 * 0.45, y: tip.y + ((tip.y - pre.y) / d) * w1 * 0.45 };
+  return [...left, capPt, ...right.reverse()];
+}
+
+// Büsche hinter dem Stammfuß: sattes Grün, damit es unten nicht blass wirkt
+function bushes(ctx, rng) {
+  for (const [y0, cols] of [[4560, ['#3d7a3a', '#4a8c43', '#357034']], [4630, ['#4f9a48', '#5aa851', '#468e40']]]) {
+    for (let x = -OX - 60; x < WORLD_W - OX + 60; x += 70 + rng() * 60) {
+      const r = 70 + rng() * 60;
+      const y = y0 + rng() * 40;
+      ctx.fillStyle = '#2f5a2a';
+      ctx.beginPath();
+      ctx.arc(x, y, r + 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = cols[Math.floor(rng() * cols.length)];
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255, 255, 220, 0.12)';
+      ctx.beginPath();
+      ctx.arc(x - r * 0.3, y - r * 0.35, r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      // Blüten
+      if (rng() < 0.6) {
+        ctx.fillStyle = ['#ff9ec7', '#ffffff', '#ffd166'][Math.floor(rng() * 3)];
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.arc(x + (rng() - 0.5) * r * 1.2, y + (rng() - 0.7) * r, 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+}
+
+// Moospolster auf der Oberseite einer Wurzel
+function moss(ctx, root, rng) {
+  for (let i = 0; i < 16; i++) {
+    const t = 0.05 + (i / 16) * 0.8;
+    const c = bez(root.p, t);
+    const w = (root.w0 + (root.w1 - root.w0) * t ** 0.8) / 2;
+    const r = 14 + rng() * 16;
+    ctx.fillStyle = ['#5d9a3e', '#6fae48', '#4f8a36'][i % 3];
+    ctx.beginPath();
+    ctx.arc(c.x + (rng() - 0.5) * 20, c.y - w * 0.75, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Efeuranke an der Stammkante (side −1 links, 1 rechts), von y0 nach oben bis y1
+function ivy(ctx, side, y0, y1, rng) {
+  const xAt = (y) => TRUNK_X + sway(y) + side * (halfWidth(y) - 40) + 22 * Math.sin(y / 95);
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = '#3e6b2c';
+  ctx.beginPath();
+  for (let y = y0; y >= y1; y -= 20) (y === y0 ? ctx.moveTo : ctx.lineTo).call(ctx, xAt(y), y);
+  ctx.stroke();
+  for (let y = y0 - 30, i = 0; y > y1; y -= 55 + rng() * 25, i++) {
+    const x = xAt(y);
+    const dir = i % 2 ? 1 : -1;
+    leaf(ctx, x + dir * 22, y, 24 + rng() * 10, dir * 0.7, ['#4f9a48', '#6fbf5a', '#3f8a3c'][i % 3]);
+  }
+}
+
+function leaf(ctx, x, y, s, rot, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, -s);
+  ctx.quadraticCurveTo(s, -s * 0.2, 0, s * 0.8);
+  ctx.quadraticCurveTo(-s, -s * 0.2, 0, -s);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(30, 60, 20, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.7);
+  ctx.lineTo(0, s * 0.6);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// rundes Fenster mit Holzrahmen, warmem Licht, Vorhängen und Blumenkasten
+function roundWindow(ctx, x, y, r) {
+  ctx.fillStyle = 'rgba(30, 15, 5, 0.35)';
+  ctx.beginPath();
+  ctx.arc(x + 4, y + 8, r + 20, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5a3420';
+  ctx.beginPath();
+  ctx.arc(x, y, r + 20, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#b8814f';
+  ctx.beginPath();
+  ctx.arc(x, y, r + 13, 0, Math.PI * 2);
+  ctx.fill();
+  const glass = ctx.createRadialGradient(x - r * 0.2, y - r * 0.2, r * 0.1, x, y, r);
+  glass.addColorStop(0, '#fff3c4');
+  glass.addColorStop(0.6, '#ffd27a');
+  glass.addColorStop(1, '#f0a14a');
+  ctx.fillStyle = glass;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  // Vorhänge
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#ff9ec7';
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + s * r, y - r);
+    ctx.quadraticCurveTo(x + s * r * 0.35, y - r * 0.1, x + s * r * 0.75, y + r);
+    ctx.lineTo(x + s * r, y + r);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.strokeStyle = '#5a3420';
+  ctx.lineWidth = Math.max(5, r * 0.11);
+  ctx.beginPath();
+  ctx.moveTo(x - r, y);
+  ctx.lineTo(x + r, y);
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x, y + r);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.beginPath();
+  ctx.ellipse(x - r * 0.45, y - r * 0.5, r * 0.18, r * 0.1, -0.7, 0, Math.PI * 2);
+  ctx.fill();
+  // Blumenkasten
+  const bw = r * 1.5;
+  for (const [cx, col] of [[-0.5, '#ff7ab8'], [-0.15, '#ffd166'], [0.2, '#ffffff'], [0.5, '#c9a6ff']]) {
+    ctx.fillStyle = '#4f9a48';
+    ctx.beginPath();
+    ctx.arc(x + cx * bw, y + r + 16, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x + cx * bw, y + r + 8, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#8a5a3b';
+  ctx.beginPath();
+  ctx.roundRect(x - bw * 0.7, y + r + 18, bw * 1.4, 22, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#4a2a18';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+}
+
+// kleine runde Haustür am Stammfuß mit Steinbogen, Stufen, Laterne und Pilzen; (x, bottom) = Mitte unten
+function door(ctx, x, bottom, w, h) {
+  const top = bottom - h;
+  const arch = (pad) => {
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 - pad, bottom);
+    ctx.lineTo(x - w / 2 - pad, top + w / 2);
+    ctx.arc(x, top + w / 2, w / 2 + pad, Math.PI, 0);
+    ctx.lineTo(x + w / 2 + pad, bottom);
+    ctx.closePath();
+  };
+  // Steinbogen
+  arch(30);
+  ctx.fillStyle = '#4a2a18';
+  ctx.fill();
+  arch(24);
+  ctx.fillStyle = '#a69c8e';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(70, 60, 50, 0.6)';
+  ctx.lineWidth = 3;
+  for (let a = Math.PI; a <= Math.PI * 2 + 0.01; a += Math.PI / 7) {
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * (w / 2), top + w / 2 + Math.sin(a) * (w / 2));
+    ctx.lineTo(x + Math.cos(a) * (w / 2 + 24), top + w / 2 + Math.sin(a) * (w / 2 + 24));
+    ctx.stroke();
+  }
+  // Tür aus Brettern
+  arch(0);
+  ctx.fillStyle = '#c98b5a';
+  ctx.fill();
+  ctx.save();
+  arch(0);
+  ctx.clip();
+  ctx.strokeStyle = '#a86d40';
+  ctx.lineWidth = 5;
+  for (let bx = x - w / 2 + w / 4; bx < x + w / 2; bx += w / 4) {
+    ctx.beginPath();
+    ctx.moveTo(bx, top);
+    ctx.lineTo(bx, bottom);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#8a5a3b';
+  ctx.fillRect(x - w / 2, bottom - h * 0.32, w, 12);
+  ctx.fillRect(x - w / 2, top + h * 0.42, w, 12);
+  ctx.restore();
+  // rundes Guckfenster und Knauf
+  ctx.fillStyle = '#5a3420';
+  ctx.beginPath();
+  ctx.arc(x, top + w * 0.42, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffe08a';
+  ctx.beginPath();
+  ctx.arc(x, top + w * 0.42, 19, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#5a3420';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x - 19, top + w * 0.42);
+  ctx.lineTo(x + 19, top + w * 0.42);
+  ctx.moveTo(x, top + w * 0.42 - 19);
+  ctx.lineTo(x, top + w * 0.42 + 19);
+  ctx.stroke();
+  ctx.fillStyle = '#ffd166';
+  ctx.beginPath();
+  ctx.arc(x + w * 0.3, bottom - h * 0.45, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#8a5a1a';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // Stufen
+  ctx.fillStyle = '#9a9184';
+  ctx.strokeStyle = '#4a3a2a';
+  ctx.lineWidth = 4;
+  for (const [sw, sy] of [[w + 70, 0], [w + 30, -18]]) {
+    ctx.beginPath();
+    ctx.roundRect(x - sw / 2, bottom + sy - 6, sw, 24, 10);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Laterne links an einem Haken
+  const lx = x - w / 2 - 70;
+  const ly = top + 70;
+  ctx.strokeStyle = '#3b2a1a';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(lx + 40, ly - 30);
+  ctx.lineTo(lx, ly - 30);
+  ctx.lineTo(lx, ly - 12);
+  ctx.stroke();
+  const glow = ctx.createRadialGradient(lx, ly + 20, 4, lx, ly + 20, 90);
+  glow.addColorStop(0, 'rgba(255, 220, 120, 0.55)');
+  glow.addColorStop(1, 'rgba(255, 220, 120, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(lx, ly + 20, 90, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3b2a1a';
+  ctx.beginPath();
+  ctx.roundRect(lx - 22, ly - 12, 44, 62, 10);
+  ctx.fill();
+  ctx.fillStyle = '#ffd96b';
+  ctx.beginPath();
+  ctx.roundRect(lx - 14, ly - 2, 28, 42, 8);
+  ctx.fill();
+  // Pilze rechts
+  for (const [mx, ms] of [[x + w / 2 + 60, 1], [x + w / 2 + 120, 0.7], [x - w / 2 - 130, 0.8]]) mushroom(ctx, mx, bottom + 6, ms);
+}
+
+function mushroom(ctx, x, y, s) {
+  ctx.fillStyle = '#fff4e0';
+  ctx.strokeStyle = '#4a2a18';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(x - 13 * s, y - 50 * s, 26 * s, 50 * s, 10 * s);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#e0566f';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 50 * s, 46 * s, 34 * s, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  for (const [dx, dy, r] of [[-20, -62, 7], [6, -72, 8], [24, -58, 6]]) {
+    ctx.beginPath();
+    ctx.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Holzplattform unter dem Baumhaus: Bretter, schräge Streben hinunter zum Ast, Strickleiter
+function platform(ctx, slot) {
+  const hh = (slot.rows * CELL * TREE_SCALE) / 2;
+  const hw = (slot.cols * CELL * TREE_SCALE) / 2;
+  const y = slot.y + hh + 22;
+  const x0 = slot.x - hw - 50;
+  const x1 = slot.x + hw + 50;
+  // Streben
+  ctx.lineCap = 'round';
+  for (const [ax, bx, by] of [[x0 + 50, slot.x - 20, y + 170], [x1 - 50, slot.x + 30, y + 160]]) {
+    ctx.strokeStyle = '#4a2a18';
+    ctx.lineWidth = 26;
+    ctx.beginPath();
+    ctx.moveTo(ax, y + 10);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+    ctx.strokeStyle = '#9e6b47';
+    ctx.lineWidth = 16;
+    ctx.stroke();
+  }
+  // Bretter
+  ctx.fillStyle = '#4a2a18';
+  ctx.beginPath();
+  ctx.roundRect(x0 - 6, y - 6, x1 - x0 + 12, 42, 12);
+  ctx.fill();
+  ctx.fillStyle = '#c98b5a';
+  ctx.beginPath();
+  ctx.roundRect(x0, y, x1 - x0, 30, 9);
+  ctx.fill();
+  ctx.strokeStyle = '#a86d40';
+  ctx.lineWidth = 4;
+  for (let px = x0 + 60; px < x1; px += 60) {
+    ctx.beginPath();
+    ctx.moveTo(px, y + 3);
+    ctx.lineTo(px, y + 27);
+    ctx.stroke();
+  }
+  // Strickleiter vom linken Rand
+  const lx = x0 + 34;
+  ctx.strokeStyle = '#d8b98a';
+  ctx.lineWidth = 6;
+  for (const dx of [-22, 22]) {
+    ctx.beginPath();
+    ctx.moveTo(lx + dx, y + 30);
+    ctx.quadraticCurveTo(lx + dx - 10, y + 200, lx + dx + 6, y + 380);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#a8774f';
+  ctx.lineWidth = 9;
+  for (let k = 1; k <= 6; k++) {
+    const ry = y + 30 + k * 55;
+    ctx.beginPath();
+    ctx.moveTo(lx - 24 - k, ry);
+    ctx.lineTo(lx + 24 - k, ry);
+    ctx.stroke();
+  }
+}
 
 // Kronenstück abgedunkelt (für die hintere Schicht): Bild in eine Hilfsfläche, darüber die Farbe nur auf dem Bild
 function darken(img, color) {
@@ -595,25 +989,30 @@ function darken(img, color) {
   return c;
 }
 
-// Anordnung der Kronenstücke: große Wolken in drei Schichten. Die unterste Reihe hängt tief über die Oberkante
-// des Stamms (und seine Schultern), damit der Stamm nahtlos in der Krone verschwindet – liegt aber hinter den Zimmern.
+// Kronenstücke in den Blätterbüscheln (CROWN): hinten große dunkle, vorne kleinere helle Stücke
 function crownLayout(n) {
   const rng = makeRng(23);
   const out = [];
-  const inside = (x, y) => ((x - 1200) / 1150) ** 2 + ((y - 640) / 640) ** 2 < 1;
   const pick = () => Math.floor(rng() * n);
-  const layer = (stepX, stepY, back, scale, y0, y1, ellipse = true) => {
-    for (let y = y0, row = 0; y <= y1; y += stepY, row++) {
-      for (let x = 120 + (row % 2) * (stepX / 2); x < 2320; x += stepX) {
-        const px = x + (rng() - 0.5) * stepX * 0.35;
-        const py = y + (rng() - 0.5) * stepY * 0.35;
-        if (ellipse && !inside(px, py)) continue;
-        out.push({ x: px, y: py, i: pick(), s: scale * (0.9 + rng() * 0.25), flip: rng() < 0.5, back });
+  for (const c of CROWN) {
+    const area = c.rx * c.ry;
+    const k = Math.min(1, c.rx / 220); // kleine Büschel: kleinere Stücke
+    for (const [back, scale, density] of [[true, 1.55 * k, 1 / 52000 / k / k], [false, 1.2 * k, 1 / 40000 / k / k]]) {
+      const count = Math.max(2, Math.round(area * density));
+      for (let i = 0; i < count; i++) {
+        const a = rng() * Math.PI * 2;
+        const d = Math.sqrt(rng()) * (back ? 0.75 : 0.6);
+        out.push({
+          x: c.x + Math.cos(a) * c.rx * d,
+          y: c.y + Math.sin(a) * c.ry * d + (back ? -20 : 15),
+          i: pick(),
+          s: scale * (0.85 + rng() * 0.3),
+          flip: rng() < 0.5,
+          back,
+        });
       }
     }
-  };
-  layer(640, 400, true, 2.5, 160, 1100); // hinten: sehr groß, dunkler
-  layer(600, 380, false, 2.1, 260, 1000); // Mitte
-  layer(430, 120, false, 1.8, 1020, 1140, false); // unten: Saum über der Stammoberkante
-  return out;
+  }
+  // erst alle hinteren, dann die vorderen
+  return out.sort((a, b) => (a.back === b.back ? 0 : a.back ? -1 : 1));
 }

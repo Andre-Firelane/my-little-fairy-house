@@ -2,6 +2,8 @@
 // Hochformat (Tablet): 1080 breit. Querformat (PC): so breit wie das Fenster (höchstens 2:1) –
 // der Baum bekommt dann links und rechts Himmel und Wiese, die Bedienleisten bleiben mittig UI_W breit.
 
+import { sway, TREEHOUSE, OX, OY } from './treeShape.js';
+
 export const UI_W = 1080; // Breite der Bedienung (Leisten, Knöpfe); im Querformat mittig
 export const GAME_H = 1920;
 export let GAME_W = UI_W; // aktuelle Breite der Spielfläche (ändert sich mit dem Fenster, siehe setGameWidth)
@@ -22,8 +24,9 @@ export const BAR_H = 330;
 export const BAR_TOP = GAME_H - BAR_H;
 
 // Welt der TreeScene: großer Baum, in alle Richtungen wischbar, mit zwei Fingern zoombar
-export const WORLD_W = 2400;
-export const WORLD_H = 5000;
+// Baum (2400 × 5000) plus Platz für die große Krone oben und zu den Seiten
+export const WORLD_W = 2400 + 2 * OX;
+export const WORLD_H = 5000 + OY;
 // Zoomgrenzen: im Hochformat füllt der Baum ganz herausgezoomt die Breite;
 // im Querformat darf man genauso weit hinaus (Baum fast ganz zu sehen) und nicht ganz so nah heran.
 export let MIN_ZOOM = UI_W / WORLD_W;
@@ -63,11 +66,14 @@ export const WALL_COLORS = [
 
 // Die Höhlen im Stamm (Weltkoordinaten, Mittelpunkt). Jede hat eigene Größe (Rasterfelder) und Form
 // (siehe systems/roomGeometry.js): rect = Kammer, arch = Rundbogen, dome = Kuppel, gable = Giebeldach.
-export const SLOTS = [
+// x gilt für den geraden Stamm – die Höhlen wandern mit seinem Schwung mit (config/treeShape.js).
+// Höhle 1 ist kein Raum im Stamm, sondern das Baumhaus oben in den Ästen.
+const RAW_SLOTS = [
   // je Etage zwei große Räume, unten zwischen den Wurzeln ein breiter (Größe in Rasterfeldern, Form siehe roomGeometry)
-  // Etage 1
+  // Etage 1 (rechts daneben: großes rundes Fenster)
   { id: 0, x: 894, y: 1404, cols: 12, rows: 6, shape: 'dome' },
-  { id: 1, x: 1553, y: 1450, cols: 12, rows: 6, shape: 'arch' },
+  // Baumhaus in den Ästen
+  { id: 1, x: TREEHOUSE.x, y: TREEHOUSE.y, cols: TREEHOUSE.cols, rows: TREEHOUSE.rows, shape: 'gable', treehouse: true },
   // Etage 2
   { id: 2, x: 874, y: 1942, cols: 14, rows: 6, shape: 'gable' },
   { id: 3, x: 1589, y: 2004, cols: 13, rows: 6, shape: 'rect' },
@@ -83,6 +89,7 @@ export const SLOTS = [
   // Etage 6
   { id: 10, x: 1200, y: 4229, cols: 18, rows: 6, shape: 'rect' },
 ];
+export const SLOTS = RAW_SLOTS.map((s) => ({ ...s, x: Math.round(s.x + (s.treehouse ? 0 : sway(s.y))) + OX, y: s.y + OY }));
 
 export const DEPTH = {
   sky: -10,
