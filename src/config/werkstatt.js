@@ -253,11 +253,12 @@ export const WORKSHOP_FURNITURE = {
   werkbank: {
     id: 'werkbank',
     name: 'Werkbank',
+    sprite: 'werkbank', // gemalt (Lieferung 7); draw ist der Ersatz ohne Bild
     kind: 'floor',
     w: 3,
     h: 2,
-    surfaces: [{ y: 1.25, x0: 0, x1: 3 }], // Arbeitsplatte
-    workbench: { x: 120, y: 54 },
+    surfaces: [{ y: 1.32, x0: 0.15, x1: 2.85 }], // Arbeitsplatte
+    workbench: { x: 120, y: 52 },
     draw(g, W, H) {
       const top = H - 100;
       // Beine und untere Ablage mit Brettern
@@ -292,6 +293,7 @@ export const WORKSHOP_FURNITURE = {
   werkzeugkasten: {
     id: 'werkzeugkasten',
     name: 'Werkzeuge',
+    sprite: 'werkzeugkasten', // gemalt (Lieferung 7)
     kind: 'small',
     w: 1,
     h: 1,
@@ -340,11 +342,12 @@ export const WORKSHOP_FURNITURE = {
   saege: {
     id: 'saege',
     name: 'Große Säge',
+    sprite: 'saege', // gemalt (Lieferung 7); saege_use = Bock ohne Säge (die Fee hält sie)
     kind: 'floor',
     w: 3,
     h: 2,
-    // grip: Griff der Säge (Art-Punkt, dort fasst die Fee an), cut: Sägestelle am Stamm
-    saw: { grip: { x: 210, y: 46 }, cut: { x: 170, y: 74 } },
+    // grip: Griff der Säge (Art-Punkt, dort fasst die Fee an), cut: Sägestelle am Stamm (Oberkante)
+    saw: { grip: { x: 206, y: 22 }, cut: { x: 150, y: 40 } },
     draw: (g, W, H) => drawSawhorse(g, W, H, true),
     states: { use: (g, W, H) => drawSawhorse(g, W, H, false) }, // die Fee hat die Säge in der Hand
   },
@@ -432,7 +435,8 @@ export const TOOL_ART = {
   // Ursprung am Griffende (die Fee hält ihn dort, der Kopf zeigt nach oben)
   'tool-hammer': { w: 60, h: 70, ox: 30, oy: 62, draw: (g) => hammer(g, 0, -48, 1.6, 0) },
   // Griff im Ursprung, die Säge ragt nach links
-  'tool-bowsaw': { w: 150, h: 60, ox: 140, oy: 40, draw: (g) => bowSaw(g, 0, 0) },
+  // sprite: gemaltes Werkzeug (falls geladen) statt der Zeichnung; width = Breite im Spiel, ox/oy = Griff (0..1)
+  'tool-bowsaw': { w: 150, h: 60, ox: 140, oy: 40, draw: (g) => bowSaw(g, 0, 0), sprite: { key: 'werkzeug-saege', width: 150, ox: 0.93, oy: 0.55 } },
   'craft-slice': { w: 60, h: 60, ox: 30, oy: 30, draw: (g) => ringEnd(g, 0, 0, 22) },
   'craft-star': {
     w: 60, h: 60, ox: 30, oy: 30,

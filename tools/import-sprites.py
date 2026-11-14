@@ -3,7 +3,8 @@
     python tools/import-sprites.py <Ordner Lieferung 1> [<Ordner Lieferung 2> …] [Baumkrone.webp] [Baumrinde.webp] [Rasen.webp]
 
 Die Originale liegen in art-source/ (z. B. art-source/scenario-assets5 = Balkon-Garten,
-scenario-assets6 = Staffelei, Blütensofa, Kamin, Teetisch, Baumfenster und Haustür).
+scenario-assets6 = Staffelei, Blütensofa, Kamin, Teetisch, Baumfenster und Haustür,
+scenario-assets7 = Werkstatt).
 
 Jede Lieferung hat unten ihre eigene Zuordnung "Datei → Gegenstand" (die Dateinamen wiederholen sich).
 
@@ -548,9 +549,57 @@ def delivery_6():
     save(limit(on.crop(box)), 'kamin_on')
 
 
+# ================================================================ Lieferung 7: Werkstatt
+def pair(src_a, src_b, name_a, name_b):
+    """zwei Zustände eines Möbels mit gemeinsamem Zuschnitt (sonst springt das Bild beim Umschalten)"""
+    a, b = clean(load(src_a)), clean(load(src_b))
+    bb = [im.split()[3].point(lambda v: 255 if v > 8 else 0).getbbox() for im in (a, b)]
+    box = (max(0, min(x[0] for x in bb) - 4), max(0, min(x[1] for x in bb) - 4),
+           min(a.width, max(x[2] for x in bb) + 4), min(a.height, max(x[3] for x in bb) + 4))
+    save(limit(a.crop(box)), name_a)
+    save(limit(b.crop(box)), name_b)
+
+
+def saw_tool():
+    """die gemalte Bügelsäge vom Bock als Werkzeug für die Fee: Bügel über dem Stamm, unten nur das graue Blatt"""
+    im = Image.open(os.path.join(OUT_SPRITES, 'saege.png')).convert('RGBA')
+    px = im.load()
+    w, h = im.size
+    # Stamm-Oberkante in der Bildmitte: ab dort nur noch Metall (graues Blatt), kein Holz
+    log_top = next(y for y in range(h) if px[w // 2, y][3] > 128 and y > 40 and px[w // 2, y][0] > 120 and px[w // 2, y][0] - px[w // 2, y][2] > 40)
+    # seitlich nur der Bügel: Spalten, in denen oben (obere Leiste) etwas ist
+    top_cols = [x for x in range(w) if any(px[x, y][3] > 128 for y in range(0, log_top // 3))]
+    x0, x1 = min(top_cols), max(top_cols)
+    out = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    o = out.load()
+    for y in range(min(h, log_top + 14)):
+        for x in range(x0, x1 + 1):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            gray = max(r, g, b) - min(r, g, b) < 40
+            if y < log_top - 6 or gray:
+                o[x, y] = (r, g, b, a)
+    out = crop(out)
+    # rechts unten sitzt noch die Blüte vom Stammende: weg
+    o = out.load()
+    for y in range(int(out.height * 0.45), out.height):
+        for x in range(out.width - 24, out.width):
+            o[x, y] = (0, 0, 0, 0)
+    save(crop(out), 'werkzeug-saege')
+
+
+def delivery_7():
+    pair('Wald_neu.png', 'Wald_neu-2.png', 'saege', 'saege_use')  # Sägebock mit Säge / ohne (Fee hält sie)
+    saw_tool()
+    save(limit(crop(clean(load('Wald_neu-3.png')))), 'werkbank')
+    save(limit(crop(clean(load('Wald_neu-4.png')))), 'werkzeugkasten')
+
+
 # ================================================================ Ablauf
 DELIVERIES = {'scenario-assets1': delivery_1, 'scenario-assets2': delivery_2, 'scenario-assets3': delivery_3, 'scenario-assets4': delivery_4,
-              'scenario-assets5': delivery_5, 'scenario-assets6': delivery_6}
+              'scenario-assets5': delivery_5, 'scenario-assets6': delivery_6,
+              'scenario-assets7': delivery_7}
 frames = None
 for SRC in sys.argv[1:]:
     base = os.path.basename(os.path.normpath(SRC))

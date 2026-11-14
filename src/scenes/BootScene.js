@@ -4,6 +4,10 @@ import { FURNITURE, CELL, STICKER_PAD, textureKey, thumbKey, cardScale } from '.
 import SPRITE_FILES from '../config/sprites.json';
 import TREE_PARTS from '../config/tree.json';
 import { loadFairyParts } from '../config/fairyLooks.js';
+
+// Originalbilder, die nach dem Aufbau der Möbel-Texturen noch gebraucht werden (alle anderen werden freigegeben):
+// Baum, Balkon-Rahmen, Baumfenster und Haustür (in den Stamm gemalt), Bügelsäge (Werkzeug in der Hand der Fee)
+const KEEP_SPRITES = ['spr-baum', 'spr-balkon', 'spr-baumfenster', 'spr-haustuer', 'spr-werkzeug-saege'];
 import { FURN_RES } from '../config/quality.js';
 import { GAME_H } from '../config/layout.js';
 import { headerImage } from '../ui/header.js';
@@ -39,6 +43,7 @@ export default class BootScene extends Phaser.Scene {
     // nur vorhandene Bilder laden (fehlende Zustandsbilder: dann gilt das Grundbild)
     if (SPRITE_FILES.includes('balkon')) files.add('balkon'); // Balkon-Rahmen (objects/RoomView.js)
     files.add('baumfenster').add('haustuer'); // gemalt in den Stamm (TreeScene)
+    files.add('werkzeug-saege'); // Bügelsäge in der Hand der Fee (activities/werkstatt.js)
     for (const f of files) if (SPRITE_FILES.includes(f)) this.load.image(`spr-${f}`, `assets/sprites/${f}.png`);
     loadFairyParts(this.load); // gemalte Feen-Teile (config/fairyLooks.js)
     for (const shape of ['rect', 'arch', 'dome', 'gable']) this.load.image(`frame-${shape}`, `assets/frames/${shape}.png`);
@@ -243,7 +248,7 @@ export default class BootScene extends Phaser.Scene {
     // die großen gemalten Vorlagen werden nicht mehr gebraucht (Möbel sind jetzt eigene, passende Texturen):
     // freigeben spart viel Grafikspeicher. Den Baum braucht noch der ferne Wald (BackScene).
     for (const key of this.textures.getTextureKeys()) {
-      if (key.startsWith('spr-') && key !== 'spr-baum' && key !== 'spr-balkon') this.textures.remove(key);
+      if (key.startsWith('spr-') && !KEEP_SPRITES.includes(key)) this.textures.remove(key);
     }
 
     this.scene.start('Menu');

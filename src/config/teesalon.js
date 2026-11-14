@@ -251,7 +251,10 @@ export const TEASALON_FURNITURE = {
     kind: 'floor',
     w: 3,
     h: 2,
-    surfaces: [{ y: 1.65, x0: 0, x1: 3 }], // Tischplatte (Hut; Höhe wird am Bild nachgemessen)
+    // Tischplatte: Mitte der Hut-Oberseite (der Hut ist von schräg oben gemalt – an der obersten Kante würden
+    // die Dinge schweben), deshalb fest und nicht am Bild nachgemessen
+    surfaces: [{ y: 1.74, x0: 0.2, x1: 2.8 }],
+    topMeasured: true,
     // top: Höhe der Platte (Art-y), cups: wohin die Tassen kommen (Art-x), seats: Plätze rundherum (Art-Punkte)
     teatable: {
       top: 20,

@@ -12,8 +12,16 @@ const FAIRY_RES = 2;
 // Bild aus config/werkstatt.js (TOOL_ART) einmal backen und als Hilfsobjekt in den Raum legen
 export function toolImage(c, key, x, y) {
   const a = TOOL_ART[key];
-  bake(c.scene, key, a.w, a.h, a.draw, a.ox, a.oy, FAIRY_RES);
-  const img = c.scene.make.image({ x, y, key }, false).setOrigin(a.ox / a.w, a.oy / a.h).setScale(1 / FAIRY_RES);
+  const spr = a.sprite && c.scene.textures.exists(`spr-${a.sprite.key}`) && a.sprite;
+  let img;
+  if (spr) {
+    // gemaltes Werkzeug (z. B. die Bügelsäge vom Sägebock)
+    img = c.scene.make.image({ x, y, key: `spr-${spr.key}` }, false).setOrigin(spr.ox, spr.oy);
+    img.setScale(spr.width / img.width);
+  } else {
+    bake(c.scene, key, a.w, a.h, a.draw, a.ox, a.oy, FAIRY_RES);
+    img = c.scene.make.image({ x, y, key }, false).setOrigin(a.ox / a.w, a.oy / a.h).setScale(1 / FAIRY_RES);
+  }
   c.view.items.add(img);
   c.temp.push(img);
   return img;
