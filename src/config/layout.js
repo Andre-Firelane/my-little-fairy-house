@@ -34,8 +34,6 @@ const TREE_MIN_ZOOM = 0.38;
 export let MIN_ZOOM = Math.max(UI_W / WORLD_W, TREE_MIN_ZOOM);
 export let MAX_ZOOM = 2.2;
 export const START_ZOOM = 0.8;
-// Raumansicht: mindestens so nah (große Räume passen dann nicht ganz aufs Bild, man schiebt sie hin und her)
-export const ROOM_MIN_ZOOM = 2.5;
 
 export function setGameWidth(w) {
   GAME_W = w;

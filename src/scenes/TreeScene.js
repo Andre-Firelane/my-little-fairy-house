@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   GAME_W, GAME_H, BAR_TOP, BAR_H, WORLD_W, WORLD_H, MIN_ZOOM, MAX_ZOOM, START_ZOOM,
-  SLOTS, DEPTH, COLORS, TREE_SCALE, EDIT_ROOM_Y, SWATCH_Y, UI_W, ROOM_MIN_ZOOM,
+  SLOTS, DEPTH, COLORS, TREE_SCALE, EDIT_ROOM_Y, SWATCH_Y, UI_W,
 } from '../config/layout.js';
 import { roomById } from '../config/rooms.js';
 import Slot from '../objects/Slot.js';
@@ -12,6 +12,7 @@ import { popIn, wobble } from '../systems/juice.js';
 import { makeRng, clamp, lerpColor } from '../systems/motion.js';
 import DayNight from '../systems/dayNight.js';
 import { paintTiles } from '../systems/bake.js';
+import { groundPlan, paintPlants, GROUND_LOOKS } from '../systems/flora.js';
 import TREE_PARTS from '../config/tree.json';
 import { BG_RES } from '../config/quality.js';
 import { createRoom, house, snapshot } from '../state/house.js';
@@ -395,8 +396,8 @@ export default class TreeScene extends Phaser.Scene {
     const room = slot.room;
     // Balkon: die Blumenkästen hängen außen an den Pfosten – die sollen mit ins Bild
     const w = slot.balcony ? Math.max(room.w, (BALCONY.w * balconyFit(slot.geo).sx + 2 * CELL) * TREE_SCALE) : room.w;
-    const fit = Math.min((GAME_W - 24) / w, (SWATCH_Y - 60 - 230) / room.h);
-    const zoom = Math.max(fit, Math.min(ROOM_MIN_ZOOM, (SWATCH_Y - 60 - 230) / room.h)); // nah heran, Höhe passt immer
+    // der ganze Raum passt aufs Bild (zwischen Kopfzeile und Leiste)
+    const zoom = Math.min((GAME_W - 24) / w, (SWATCH_Y - 60 - 230) / room.h);
     const y = slot.y + (GAME_H / 2 - EDIT_ROOM_Y) / zoom;
     // wie weit man den Raum schieben darf (halbe Überbreite in Welt-Pixeln)
     this.roomPan = { x0: slot.x, y0: y, rx: Math.max(0, (w - (GAME_W - 24) / zoom) / 2) };
@@ -482,10 +483,12 @@ export default class TreeScene extends Phaser.Scene {
   // Querformat: die Wiese geht links und rechts des Baums weiter (nur gemalt, wenn man sie sehen kann)
   paintSideMeadows() {
     if (this.sideMeadows || GAME_W <= UI_W) return;
-    const y0 = 4600 + OY;
+    const y0 = GROUND_Y + OY - 1500; // Platz für die Bäume am Waldrand
+    const plan = floraPlan();
     const paint = (x0) => (ctx) => {
       const { grass, grassFront } = this.grassPatterns(ctx);
       meadow(ctx, grass, 4690 + OY, 22, x0, x0 + SIDE_MEADOW);
+      paintPlants(ctx, plan.back, GROUND_LOOKS);
       meadow(ctx, grassFront, 4735 + OY, 14, x0, x0 + SIDE_MEADOW);
       const rng = makeRng(x0 < 0 ? 31 : 37);
       for (let i = 0; i < 80; i++) {
@@ -494,11 +497,26 @@ export default class TreeScene extends Phaser.Scene {
         ctx.arc(x0 + rng() * SIDE_MEADOW, 4770 + OY + rng() * 210, 6 + rng() * 5, 0, Math.PI * 2);
         ctx.fill();
       }
+      paintPlants(ctx, plan.front, GROUND_LOOKS);
     };
     const opts = { res: BG_RES, depth: DEPTH.tree, y0 };
     this.sideMeadows = [
       ...paintTiles(this, 'meadow-left', SIDE_MEADOW, WORLD_H - y0, paint(-SIDE_MEADOW), { ...opts, x0: -SIDE_MEADOW }),
       ...paintTiles(this, 'meadow-right', SIDE_MEADOW, WORLD_H - y0, paint(WORLD_W), { ...opts, x0: WORLD_W }),
+      // unter dem Weltrand: neben der Kartenleiste sieht man noch ein Stück Wiese (gröber gemalt, liegt ja am Rand)
+      ...paintTiles(this, 'meadow-below', WORLD_W + 2 * SIDE_MEADOW, Math.ceil(BAR_H / MIN_ZOOM), (ctx) => {
+        const { grassFront } = this.grassPatterns(ctx);
+        if (grassFront) grassFront.setTransform(new DOMMatrix().translate(0, 4735 + OY - 14 * 1.6));
+        ctx.fillStyle = grassFront || '#6cc46a';
+        ctx.fillRect(-SIDE_MEADOW, WORLD_H - 2, WORLD_W + 2 * SIDE_MEADOW, BAR_H / MIN_ZOOM + 4);
+        const rng = makeRng(41);
+        for (let i = 0; i < 300; i++) {
+          ctx.fillStyle = ['#ffffff', '#ffd166', '#ff9ec7', '#c9a6ff'][i % 4];
+          ctx.beginPath();
+          ctx.arc(-SIDE_MEADOW + rng() * (WORLD_W + 2 * SIDE_MEADOW), WORLD_H + rng() * 800, 6 + rng() * 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }, { res: BG_RES * 0.5, depth: DEPTH.tree, x0: -SIDE_MEADOW, y0: WORLD_H, tile: 2000 }),
     ];
   }
 
@@ -512,6 +530,7 @@ export default class TreeScene extends Phaser.Scene {
     const doorImg = sprite('haustuer');
     const pieces = crownLayout(crowns.length);
     const house = SLOTS.find((s) => s.treehouse);
+    const plan = floraPlan();
     paintTiles(this, 'tree', WORLD_W, WORLD_H, (ctx) => {
       const rng = makeRng(11);
       const barkFill = ctx.createPattern(bark, 'repeat');
@@ -519,12 +538,12 @@ export default class TreeScene extends Phaser.Scene {
       const { grass, grassFront } = this.grassPatterns(ctx);
       const outline = '#4a2a18';
 
-      // Wiese hinter dem Baum (gemalter Rasen, leicht hügelige Oberkante)
+      // Wiese hinter dem Baum (gemalter Rasen, leicht hügelige Oberkante), darauf Waldrand und Dickicht
       meadow(ctx, grass, 4690 + OY, 22);
+      paintPlants(ctx, plan.back, GROUND_LOOKS);
       // ab hier in Baum-Koordinaten (config/treeShape.js)
       ctx.save();
       ctx.translate(OX, OY);
-      bushes(ctx, makeRng(4));
 
       // Holz: Äste mit Zweigen, Wurzeln und Stamm – erst alle dunklen Kanten, dann die Rinde darüber,
       // so wachsen die Teile ohne Naht ineinander
@@ -632,6 +651,8 @@ export default class TreeScene extends Phaser.Scene {
         ctx.arc(rng() * WORLD_W, 4770 + OY + rng() * 210, 6 + rng() * 5, 0, Math.PI * 2);
         ctx.fill();
       }
+      // Gräser, Blumen, Pilze und Steine vorne in der Wiese
+      paintPlants(ctx, plan.front, GROUND_LOOKS);
     }, { res: BG_RES, depth: DEPTH.tree });
     this.halos = []; // Lichter hängen jetzt gemalt an der Krone
   }
@@ -652,6 +673,20 @@ function hangOnPegs(items, geo) {
 
 // gemalte Kronenstücke (tools/import-sprites.py → public/assets/tree)
 const TREE_PARTS_KEYS = Array.from({ length: TREE_PARTS.krone }, (_, i) => `tree-krone-${i + 1}`);
+
+// Pflanzen am Boden (systems/flora.js): einmal geplant, für die ganze Breite samt Wiesen links und rechts –
+// so passen Baum-Kacheln und Seitenwiesen nahtlos aneinander
+let floraCache;
+function floraPlan() {
+  floraCache ||= groundPlan({
+    x0: -SIDE_MEADOW,
+    x1: WORLD_W + SIDE_MEADOW,
+    gy: GROUND_Y - 10 + OY,
+    trunk: [TRUNK_X + OX - 1100, TRUNK_X + OX + 1100],
+    door: [DOOR.x + OX - 240, DOOR.x + OX + 240],
+  });
+  return floraCache;
+}
 
 // Wiesenstreifen bis zum unteren Weltrand: gemalter Rasen (ohne Bild: einfaches Grün), gewellte Oberkante mit dunkler Linie
 // (x0..x1 = Ausschnitt in Weltkoordinaten; die Welle ist überall gleich, damit Stücke nahtlos aneinanderpassen)
@@ -700,37 +735,6 @@ function taper(p, w0, w1, n = 28) {
   const d = Math.hypot(tip.x - pre.x, tip.y - pre.y) || 1;
   const capPt = { x: tip.x + ((tip.x - pre.x) / d) * w1 * 0.45, y: tip.y + ((tip.y - pre.y) / d) * w1 * 0.45 };
   return [...left, capPt, ...right.reverse()];
-}
-
-// Büsche hinter dem Stammfuß: sattes Grün, damit es unten nicht blass wirkt
-function bushes(ctx, rng) {
-  for (const [y0, cols] of [[4560, ['#3d7a3a', '#4a8c43', '#357034']], [4630, ['#4f9a48', '#5aa851', '#468e40']]]) {
-    for (let x = -OX - 60; x < WORLD_W - OX + 60; x += 70 + rng() * 60) {
-      const r = 70 + rng() * 60;
-      const y = y0 + rng() * 40;
-      ctx.fillStyle = '#2f5a2a';
-      ctx.beginPath();
-      ctx.arc(x, y, r + 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = cols[Math.floor(rng() * cols.length)];
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255, 255, 220, 0.12)';
-      ctx.beginPath();
-      ctx.arc(x - r * 0.3, y - r * 0.35, r * 0.45, 0, Math.PI * 2);
-      ctx.fill();
-      // Blüten
-      if (rng() < 0.6) {
-        ctx.fillStyle = ['#ff9ec7', '#ffffff', '#ffd166'][Math.floor(rng() * 3)];
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath();
-          ctx.arc(x + (rng() - 0.5) * r * 1.2, y + (rng() - 0.7) * r, 7, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-  }
 }
 
 // Moospolster auf der Oberseite einer Wurzel
