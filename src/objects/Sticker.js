@@ -22,6 +22,7 @@ export default class Sticker extends Phaser.GameObjects.Container {
     this.def = def;
     this.item = null;
     this.carried = false; // gerade von einer Fee getragen
+    this.restScale = 1; // normale Größe – dahin kehrt jedes Quetschen zurück (systems/juice.js)
     this.W = def.w * CELL;
     this.H = def.h * CELL;
     const oy = (this.H + STICKER_PAD) / (this.H + STICKER_PAD * 2);

@@ -1,5 +1,6 @@
 import { bakedImage } from '../systems/bake.js';
 import { iconImage } from './icons.js';
+import { FONT } from '../config/layout.js';
 
 // Gebackene UI-Flächen (Leisten, Karten, Knöpfe) – gleich aussehend wie vorher mit Graphics, aber ein Bild.
 
@@ -44,6 +45,27 @@ export function iconButton(scene, x, y, w, h, icon, onTap, { fill, stroke, size 
   const c = scene.add.container(x, y);
   c.add([pillImage(scene, w, h, fill, stroke), iconImage(scene, icon, size)]);
   c.setSize(w, h).setInteractive();
+  c.on('pointerup', onTap);
+  return c;
+}
+
+// Knopf mit Bildzeichen links und Schrift daneben (Haupt- und Spielmenü – die lesen eher die Eltern);
+// sub = kleine zweite Zeile. Gibt den Container zurück; .setSub(text) ändert die zweite Zeile.
+export function labelButton(scene, x, y, w, h, icon, label, sub, onTap, { fill, stroke } = {}) {
+  const c = scene.add.container(x, y);
+  const left = -w / 2 + h * 0.55;
+  const img = iconImage(scene, icon, Math.min(120, h * 0.55)).setPosition(left, 0);
+  const tx = left + h * 0.5;
+  const text = scene.add.text(tx, sub ? -24 : 0, label, { fontFamily: FONT, fontSize: '58px', fontStyle: 'bold', color: '#5a3a7a' }).setOrigin(0, 0.5);
+  if (text.width > w - (tx + w / 2) - 30) text.setScale((w - (tx + w / 2) - 30) / text.width);
+  const subText = scene.add.text(tx, 28, sub || '', { fontFamily: FONT, fontSize: '32px', color: '#8a6aa8' }).setOrigin(0, 0.5);
+  c.add([pillImage(scene, w, h, fill, stroke), img, text, subText]);
+  c.labelX = tx;
+  c.setSub = (t) => {
+    subText.setText(t || '');
+    text.setY(t ? -24 : 0);
+  };
+  c.setSize(w, h).setInteractive({ useHandCursor: true });
   c.on('pointerup', onTap);
   return c;
 }

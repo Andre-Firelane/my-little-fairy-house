@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_W } from '../config/layout.js';
+import { roomById } from '../config/rooms.js';
+
+// passt dieser Raumtyp in diese Höhle? Der Garten (open) nur auf Balkone, alle anderen nur in den Stamm
+export const fits = (slot, roomId) => !!roomById(roomId)?.open === !!slot.balcony;
 
 // Gemeinsamer Zustand für das Platzieren von Räumen (Tap-Select und Drag-and-Drop).
 // TreeScene besitzt ihn, UIScene holt ihn aus der Registry.
@@ -32,13 +36,13 @@ export default class Placement extends Phaser.Events.EventEmitter {
     return this.tree.toWorld(o.x, o.y);
   }
 
-  freeSlotAt(wx, wy) {
-    return this.tree.slots.find((s) => !s.room && s.contains(wx, wy)) || null;
+  freeSlotAt(wx, wy, roomId = this.selected) {
+    return this.tree.slots.find((s) => !s.room && (!roomId || fits(s, roomId)) && s.contains(wx, wy)) || null;
   }
 
   // Raum in Slot setzen; fromX/fromY = Weltposition, von der aus er einfliegt
   place(roomId, slot, fromX, fromY) {
-    if (!slot || slot.room) return false;
+    if (!slot || slot.room || !fits(slot, roomId)) return false;
     this.tree.placeRoom(roomId, slot, fromX, fromY);
     this.clear();
     this.emit('room-placed', slot);

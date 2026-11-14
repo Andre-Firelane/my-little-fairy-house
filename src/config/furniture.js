@@ -15,6 +15,10 @@
 //   soft: weicher Sitzplatz (Lieblingsort zum Lesen), board: Schreibfläche der Tafel
 
 import { fillStar } from '../systems/draw.js';
+import { GARDEN_FURNITURE } from './garden.js';
+import { WORKSHOP_FURNITURE } from './werkstatt.js';
+import { ATELIER_FURNITURE } from './atelier.js';
+import { TEASALON_FURNITURE } from './teesalon.js';
 
 export const CELL = 80;
 export const STICKER_PAD = 10;
@@ -516,12 +520,13 @@ export const FURNITURE = {
     id: 'bett',
     name: 'Bett',
     sprite: 'bett',
-    pillow: { x: 90, y: 60 }, // hier liegt der Kopf der schlafenden Fee
+    pillow: { x: 55, y: 32 }, // hier liegt die schlafende Fee (Mitte, Kopf links auf dem Kissen)
     kind: 'floor',
-    w: 4,
-    h: 2,
+    // klein: die Feen sind nur ein Rasterfeld groß (früher 4 × 2 – viel zu riesig für sie)
+    w: 2,
+    h: 1,
     soft: true,
-    surfaces: [{ y: 1.1, x0: 0, x1: 4 }], // Matratze (Lesen, Schlafen)
+    surfaces: [{ y: 0.55, x0: 0, x1: 2 }], // Matratze (Lesen, Schlafen)
     draw(g) {
       // Kopfteil links, Fußteil rechts
       g.fillStyle(0x9c6a43, 1);
@@ -1024,6 +1029,39 @@ export const FURNITURE = {
     states: { on: (g) => drawNightlight(g, true) },
   },
 
+  // Spieluhr (Schlafzimmer): die Fee setzt sich daneben, dreht die Kurbel, Noten steigen auf
+  spieluhr: {
+    id: 'spieluhr',
+    name: 'Spieluhr',
+    kind: 'small',
+    w: 1,
+    h: 1,
+    instrument: { mode: 'sit', at: { x: 104, y: 46 }, face: -1, notes: { x: 40, y: 10 }, color: 0xb4c4ff },
+    draw(g) {
+      // Kästchen mit offenem Deckel
+      g.fillStyle(0xd9a7f0, 1);
+      g.fillPoints([{ x: 12, y: 44 }, { x: 68, y: 44 }, { x: 62, y: 18 }, { x: 18, y: 18 }], true);
+      g.fillStyle(0xfff3a8, 1);
+      fillStar(g, 40, 30, 7, 3, 5);
+      g.fillStyle(0xff9ec7, 1);
+      g.fillRoundedRect(8, 44, 64, 32, 6);
+      g.fillStyle(0xffd166, 1);
+      g.fillRect(8, 52, 64, 4);
+      g.fillCircle(40, 66, 4);
+      // kleine Tänzerin auf dem Kästchen
+      g.fillStyle(0xffffff, 1);
+      g.fillTriangle(30, 44, 50, 44, 40, 30);
+      g.fillStyle(0xffe0c8, 1);
+      g.fillCircle(40, 26, 5);
+      // Kurbel rechts
+      g.lineStyle(3, 0xffd166, 1);
+      g.lineBetween(72, 60, 78, 60);
+      g.lineBetween(78, 60, 78, 52);
+      g.lineStyle(2.5, 0x4a2a18, 1);
+      g.strokeRoundedRect(8, 44, 64, 32, 6);
+    },
+  },
+
   buecher: {
     id: 'buecher',
     name: 'Bücher',
@@ -1278,6 +1316,10 @@ export const FURNITURE = {
     draw: drawVase,
   },
 };
+
+// Gartensachen (Balkon-Garten) stehen in config/garden.js, Werkstatt und Turnraum in config/werkstatt.js,
+// Malatelier in config/atelier.js, Teesalon in config/teesalon.js
+Object.assign(FURNITURE, GARDEN_FURNITURE, WORKSHOP_FURNITURE, ATELIER_FURNITURE, TEASALON_FURNITURE);
 
 export const furnitureById = (id) => FURNITURE[id];
 export const textureKey = (id, v = 0, state = null) => `furn-${id}${v ? `-${v}` : ''}${state ? `@${state}` : ''}`;

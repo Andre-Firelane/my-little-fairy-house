@@ -3,6 +3,7 @@ import { starPoints } from '../systems/draw.js';
 import { FURNITURE, CELL, STICKER_PAD, textureKey, thumbKey, cardScale } from '../config/furniture.js';
 import SPRITE_FILES from '../config/sprites.json';
 import TREE_PARTS from '../config/tree.json';
+import { loadFairyParts } from '../config/fairyLooks.js';
 import { FURN_RES } from '../config/quality.js';
 import { GAME_H } from '../config/layout.js';
 import { headerImage } from '../ui/header.js';
@@ -36,7 +37,10 @@ export default class BootScene extends Phaser.Scene {
       }
     }
     // nur vorhandene Bilder laden (fehlende Zustandsbilder: dann gilt das Grundbild)
+    if (SPRITE_FILES.includes('balkon')) files.add('balkon'); // Balkon-Rahmen (objects/RoomView.js)
+    files.add('baumfenster').add('haustuer'); // gemalt in den Stamm (TreeScene)
     for (const f of files) if (SPRITE_FILES.includes(f)) this.load.image(`spr-${f}`, `assets/sprites/${f}.png`);
+    loadFairyParts(this.load); // gemalte Feen-Teile (config/fairyLooks.js)
     for (const shape of ['rect', 'arch', 'dome', 'gable']) this.load.image(`frame-${shape}`, `assets/frames/${shape}.png`);
     // Baum: Kronenstücke und (nahtlose) Rinde
     for (let i = 1; i <= TREE_PARTS.krone; i++) this.load.image(`tree-krone-${i}`, `assets/tree/krone-${i}.png`);
@@ -100,6 +104,37 @@ export default class BootScene extends Phaser.Scene {
     ctx.setTransform(R, 0, 0, R, 0, 0);
     ctx.drawImage(img, P + (W - dw) / 2, def.spriteAlign === 'top' ? P : P + H - dh, dw, dh);
     tex.refresh();
+    if (!def.topMeasured) this.measureTop(def, img, (W - dw) / 2, def.spriteAlign === 'top' ? 0 : H - dh, dw, dh);
+  }
+
+  // Oberste Ablage („oben drauf“) genau auf die gemalte Oberkante setzen: das Bild füllt sein Rasterfeld nicht immer
+  // ganz aus, sonst schweben Dinge darauf in der Luft. Gemessen wird die oberste deckende Zeile über der Ablage
+  // (Median über ihre Breite). Ablagen weiter unten (Regalbretter, Sitzflächen) bleiben, wie sie eingetragen sind.
+  measureTop(def, img, ox, oy, dw, dh) {
+    def.topMeasured = true;
+    const top = (def.surfaces || []).reduce((a, b) => (!a || b.y > a.y ? b : a), null);
+    if (!top || top.y < def.h * 0.75) return;
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0);
+    const { data } = x.getImageData(0, 0, img.width, img.height);
+    const px0 = Math.max(0, Math.floor(((top.x0 * CELL - ox) * img.width) / dw));
+    const px1 = Math.min(img.width, Math.ceil(((top.x1 * CELL - ox) * img.width) / dw));
+    const tops = [];
+    for (let px = px0; px < px1; px += 2) {
+      for (let py = 0; py < img.height; py++) {
+        if (data[(py * img.width + px) * 4 + 3] > 128) {
+          tops.push(py);
+          break;
+        }
+      }
+    }
+    if (!tops.length) return;
+    tops.sort((a, b) => a - b);
+    const ty = tops[Math.floor(tops.length / 2)];
+    top.y = Math.round(((def.h * CELL - (oy + (ty * dh) / img.height)) / CELL) * 100) / 100;
   }
 
   create() {
@@ -129,7 +164,7 @@ export default class BootScene extends Phaser.Scene {
         }
       }
       // Vorschau für die Karte in der Leiste: gleich in Kartengröße, damit sie scharf bleibt (auch auf dem Tablet)
-      this.furnTexture(g, def, thumbKey(def.id), def.cardVariant ?? 0, null, cardScale(def));
+      this.furnTexture(g, def, thumbKey(def.id), def.cardVariant ?? 0, def.cardState ?? null, cardScale(def)); // Pflanzen: ausgewachsen zeigen
     }
 
     // Zutaten-Stückchen, die eine Fee trägt (werden eingefärbt)
@@ -208,7 +243,7 @@ export default class BootScene extends Phaser.Scene {
     // die großen gemalten Vorlagen werden nicht mehr gebraucht (Möbel sind jetzt eigene, passende Texturen):
     // freigeben spart viel Grafikspeicher. Den Baum braucht noch der ferne Wald (BackScene).
     for (const key of this.textures.getTextureKeys()) {
-      if (key.startsWith('spr-') && key !== 'spr-baum') this.textures.remove(key);
+      if (key.startsWith('spr-') && key !== 'spr-baum' && key !== 'spr-balkon') this.textures.remove(key);
     }
 
     this.scene.start('Menu');

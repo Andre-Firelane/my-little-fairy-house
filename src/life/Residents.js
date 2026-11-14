@@ -67,7 +67,7 @@ export default class Residents {
     const now = this.scene.time.now / 1000;
     const idle = this.rooms.flatMap((room) =>
       room.life.fairies
-        .filter((f) => f.state === 'wander' && !room.life.director.jobs.has(f) && now - (f.arrivedAt ?? 0) > STAY_MIN)
+        .filter((f) => f.state === 'wander' && !f.need && !room.life.director.jobs.has(f) && now - (f.arrivedAt ?? 0) > STAY_MIN)
         .map((f) => ({ f, room })),
     );
     if (!idle.length || Math.random() < 0.4) return;
@@ -89,19 +89,22 @@ export default class Residents {
     this.travelers.add(f);
   }
 
-  // Zimmer → Zimmer: zum Rand fliegen, außen herum, im Zielzimmer landen
-  travel(f, from, to) {
+  // Zimmer → Zimmer: zum Rand fliegen, außen herum, im Zielzimmer landen.
+  // onArrive(room): danach (statt herumzufliegen) etwas tun; true = erledigt
+  travel(f, from, to, onArrive = null) {
     const g = from.view.geo;
     const side = to.x > from.x ? 1 : -1;
+    from.life.director.abort(f);
     f.goTo({ x: side > 0 ? g.innerRight - 40 : g.innerLeft + 40, y: g.floorY - 200 }, 260).then(() => {
       if (!from.life.fairies.includes(f)) return; // inzwischen hochgehoben o. Ä.
       this.lift(f, from);
-      this.flyInto(f, to);
+      this.flyInto(f, to, onArrive);
     });
   }
 
-  flyInto(f, to) {
+  flyInto(f, to, onArrive = null) {
     if (!to || to.life.dead) {
+      onArrive = null;
       const alt = this.rooms.filter((r) => !r.life.dead);
       if (!alt.length) return this.leave(f);
       to = pick(alt);
@@ -114,6 +117,7 @@ export default class Residents {
       this.travelers.delete(f);
       const l = to.view.toLocal(f.pos.x, f.pos.y);
       to.life.addFairy(f, l.x, l.y);
+      if (onArrive?.(to)) return;
       const a = to.life.getWanderArea();
       f.goTo({ x: rand(a.x1, a.x2), y: rand(a.y1, a.y2) }, 260).then(() => {
         if (f.state === 'script') f.wander();

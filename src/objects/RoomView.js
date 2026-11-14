@@ -6,6 +6,7 @@ import { frameTexture } from '../systems/frames.js';
 import Sticker from './Sticker.js';
 import { bake, bakedImage } from '../systems/bake.js';
 import { lerpColor } from '../systems/motion.js';
+import { BALCONY, balconyFit } from '../config/balcony.js';
 import { ROOM_RES } from '../config/quality.js';
 
 // Innenraum eines Raums in voller Größe (Raum-Koordinaten, eine Zelle = 80 px, Mitte = 0,0).
@@ -22,13 +23,24 @@ export default class RoomView extends Phaser.GameObjects.Container {
     // Wand/Boden und Rahmen sind gebacken (je Raumtyp und Form), Raster und Zielrahmen nur beim Ziehen sichtbar
     const W = geo.W + 20;
     const H = geo.H + 20;
-    this.shell = bakedImage(scene, this.shellKey(), W, H, (g) => this.drawShell(g), { res: ROOM_RES });
-    // gemalter Zimmerrahmen, passend zusammengesetzt (systems/frames.js)
-    this.rim = scene.add.image(0, 0, frameTexture(scene, geo, ROOM_RES)).setScale(1 / ROOM_RES);
+    this.open = !!typeDef.open; // Balkon: keine Wand, kein Rahmen (siehe drawOpen)
+    if (this.open && scene.textures.exists('spr-balkon')) {
+      // gemalter Balkon-Rahmen, so gestreckt, dass seine Innenfläche den Raum umschließt (config/balcony.js)
+      const f = balconyFit(geo);
+      this.shell = scene.add.image(f.x, f.y, 'spr-balkon').setOrigin(0).setDisplaySize(BALCONY.w * f.sx, BALCONY.h * f.sy);
+    } else {
+      this.shell = bakedImage(scene, this.shellKey(), W, H, (g) => (this.open ? this.drawOpen(g) : this.drawShell(g)), { res: ROOM_RES });
+    }
+    // gemalter Zimmerrahmen, passend zusammengesetzt (systems/frames.js); der Balkon hat keinen
+    this.rim = this.open
+      ? scene.add.image(0, 0, '__DEFAULT').setVisible(false)
+      : scene.add.image(0, 0, frameTexture(scene, geo, ROOM_RES)).setScale(1 / ROOM_RES);
     this.gridGfx = scene.add.graphics().setVisible(false);
     this.items = scene.add.container(0, 0);
     // Nacht: der Raum wird dunkler, solange eine Fee schläft; Lampen leuchten darüber (siehe RoomLife)
-    this.night = bakedImage(scene, `night-${geo.key}`, W, H, (g) => {
+    // (der Balkon ist draußen: dort legt sich kein Kasten über den Himmel)
+    this.night = bakedImage(scene, `night-${geo.key}${this.open ? '-open' : ''}`, W, H, (g) => {
+      if (this.open) return;
       g.fillStyle(0x1d1846, 1);
       g.fillPoints(geo.outline, true);
     }, { res: 0.25 }).setAlpha(0);
@@ -110,6 +122,70 @@ export default class RoomView extends Phaser.GameObjects.Container {
     g.lineStyle(4, it.floorLine, 1);
     g.lineBetween(left, fy, right, fy);
     for (let x = left + 80; x < right - 40; x += 120) g.lineBetween(x, fy, x, geo.innerBottom + 20);
+  }
+
+  // Balkon-Garten (Ersatz, falls das gemalte Bild fehlt): Holzdeck mit Streben darunter, Pergola (zwei Pfosten,
+  // Balken mit Lichterkette). Kein Geländer.
+  // Alles liegt hinter den Gegenständen; dahinter bleibt es durchsichtig (Himmel).
+  drawOpen(g) {
+    const geo = this.geo;
+    const fy = geo.floorY;
+    const x0 = -geo.W / 2 + 26;
+    const x1 = geo.W / 2 - 26;
+    const top = geo.innerTop - 6;
+    const ink = 0x4a2a18;
+    const wood = 0xb07a4a;
+    const dark = 0x8a5a33;
+    // Streben unter dem Deck (zum Stamm hin)
+    for (const [ax, bx] of [[x0 + 60, -40], [x1 - 60, 40]]) {
+      g.lineStyle(26, ink, 1);
+      g.lineBetween(ax, fy + 30, bx, fy + 120);
+      g.lineStyle(16, dark, 1);
+      g.lineBetween(ax, fy + 30, bx, fy + 120);
+    }
+    // Pfosten und Balken der Pergola
+    for (const px of [x0 + 26, x1 - 26]) {
+      g.fillStyle(ink, 1);
+      g.fillRoundedRect(px - 17, top - 4, 34, fy - top + 8, 8);
+      g.fillStyle(wood, 1);
+      g.fillRoundedRect(px - 12, top, 24, fy - top, 6);
+    }
+    g.fillStyle(ink, 1);
+    g.fillRoundedRect(x0 - 6, top - 26, x1 - x0 + 12, 40, 12);
+    g.fillStyle(wood, 1);
+    g.fillRoundedRect(x0, top - 21, x1 - x0, 30, 10);
+    g.fillStyle(dark, 1);
+    for (let x = x0 + 50; x < x1 - 30; x += 90) g.fillRoundedRect(x, top - 34, 18, 52, 6); // Sparrenköpfe
+    // Ranken an den Pfosten
+    for (const px of [x0 + 26, x1 - 26]) {
+      for (let y = top + 40; y < fy - 40; y += 46) {
+        const d = ((y / 46) | 0) % 2 ? 1 : -1;
+        g.fillStyle(0x5fae4a, 1);
+        g.fillEllipse(px + d * 16, y, 26, 14);
+        g.fillStyle(0x3f8a3c, 1);
+        g.fillEllipse(px - d * 14, y + 22, 22, 12);
+      }
+    }
+    // Lichterkette am Balken
+    const bulbs = [0xfff3a8, 0xffc8f0, 0xb9f2ff];
+    g.lineStyle(3, 0x5a3a2a, 1);
+    const sag = (x) => top + 22 + Math.sin(((x - x0) / (x1 - x0)) * Math.PI * 3) ** 2 * 26;
+    g.beginPath();
+    for (let x = x0 + 10; x <= x1 - 10; x += 12) (x === x0 + 10 ? g.moveTo : g.lineTo).call(g, x, sag(x));
+    g.strokePath();
+    for (let x = x0 + 30, i = 0; x < x1 - 20; x += 46, i++) {
+      g.fillStyle(bulbs[i % 3], 1);
+      g.fillCircle(x, sag(x) + 9, 8);
+    }
+    // Deck
+    g.fillStyle(ink, 1);
+    g.fillRoundedRect(x0 - 8, fy - 6, x1 - x0 + 16, 48, 12);
+    g.fillStyle(this.typeDef.interior.floor, 1);
+    g.fillRoundedRect(x0 - 2, fy - 2, x1 - x0 + 4, 32, 9);
+    g.lineStyle(3, this.typeDef.interior.floorLine, 1);
+    for (let x = x0 + 70; x < x1; x += 90) g.lineBetween(x, fy, x, fy + 28);
+    g.fillStyle(dark, 1);
+    g.fillRoundedRect(x0 - 2, fy + 26, x1 - x0 + 4, 12, 5);
   }
 
   rebuild() {

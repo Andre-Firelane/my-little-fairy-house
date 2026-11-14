@@ -6,6 +6,7 @@ import { FAIRY_PALETTES } from '../config/fairies.js';
 import { furnitureById } from '../config/furniture.js';
 import { findSpot } from '../systems/roomGrid.js';
 import { dust } from './dust.js';
+import { looks, resetLooks } from './looks.js';
 
 let nextUid = 1;
 export const newUid = () => `i${nextUid++}`;
@@ -28,6 +29,7 @@ export function resetGame() {
   nextUid = 1;
   nextFairy = 0;
   dust.set(0);
+  resetLooks();
 }
 
 // Startausstattung wird ins Raster der Höhle gesetzt (passt so in jede Größe und Form)
@@ -55,6 +57,7 @@ export function snapshot(clockT) {
     rooms: [...house.rooms.values()],
     dust: dust.amount,
     clockT,
+    looks, // Aussehen der Feen (Fee antippen)
   };
 }
 
@@ -71,7 +74,27 @@ function settle(item) {
     item.foam = 0;
   }
   if (def.skyWindow) item.state = null; // stellt sich nach der Tageszeit selbst ein
+  if (def.saw) item.state = null; // Säge liegt wieder auf dem Bock
+  if (def.wheel) item.state = null; // Töpferscheibe steht wieder still
   return true;
+}
+
+// Dinge auf Möbeln genau auf die Ablage setzen (die Höhe der obersten Ablage wird beim Start aus dem Bild gemessen,
+// siehe BootScene.measureTop – ältere Spielstände hatten sie noch etwas höher)
+function onSurfaces(items) {
+  for (const it of items) {
+    if (it.parent == null) continue;
+    const p = items.find((o) => o.uid === it.parent);
+    const surfaces = p && furnitureById(p.id)?.surfaces;
+    if (!surfaces?.length) continue;
+    const best = surfaces.reduce((a, s) => (Math.abs(p.gy + s.y - it.gy) < Math.abs(p.gy + a.y - it.gy) ? s : a));
+    it.gy = p.gy + best.y;
+    // seitlich ins Raster der Ablage einrasten (z. B. Hochbeet: früher 0,15 versetzt, jetzt drei ganze Plätze)
+    const def = furnitureById(it.id);
+    const x0 = p.gx + best.x0;
+    const slots = Math.max(0, Math.floor(best.x1 - best.x0 - (def?.w ?? 1)));
+    it.gx = x0 + Math.max(0, Math.min(slots, Math.round(it.gx - x0)));
+  }
 }
 
 export function restore(data) {
@@ -80,10 +103,12 @@ export function restore(data) {
   for (const r of data?.rooms ?? []) {
     if (!r || r.slotId == null || !Array.isArray(r.items)) continue;
     r.items = r.items.filter(settle);
+    onSurfaces(r.items);
     for (const it of r.items) maxUid = Math.max(maxUid, Number(String(it.uid).slice(1)) || 0);
     house.rooms.set(r.slotId, r);
   }
   nextUid = maxUid + 1;
   house.clockT = Number(data?.clockT) || 0;
   dust.set(data?.dust ?? 0);
+  resetLooks(data?.looks);
 }

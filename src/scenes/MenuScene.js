@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, UI_W, FONT } from '../config/layout.js';
 import { roomById } from '../config/rooms.js';
-import { cardImage, pillImage } from '../ui/panels.js';
+import { cardImage, labelButton } from '../ui/panels.js';
 import { iconImage } from '../ui/icons.js';
 import { bakedImage } from '../systems/bake.js';
 import { headerImage } from '../ui/header.js';
@@ -83,19 +83,9 @@ export default class MenuScene extends Phaser.Scene {
     }
   }
 
-  // Knopf mit Bildzeichen links und Schrift rechts daneben (sub = kleine zweite Zeile)
-  button(x, y, w, h, icon, label, sub, onTap, { fill, stroke } = {}) {
-    const c = this.add.container(x, y);
-    const left = -w / 2 + h * 0.55;
-    const img = iconImage(this, icon, Math.min(120, h * 0.55)).setPosition(left, 0);
-    const tx = left + h * 0.5;
-    const text = this.add.text(tx, sub ? -24 : 0, label, { fontFamily: FONT, fontSize: '58px', fontStyle: 'bold', color: '#5a3a7a' }).setOrigin(0, 0.5);
-    c.add([pillImage(this, w, h, fill, stroke), img, text]);
-    if (sub) c.add(this.add.text(tx, 28, sub, { fontFamily: FONT, fontSize: '32px', color: '#8a6aa8' }).setOrigin(0, 0.5));
-    c.labelX = tx;
-    c.setSize(w, h).setInteractive({ useHandCursor: true });
-    c.on('pointerup', onTap);
-    return c;
+  // Knopf mit Bildzeichen links und Schrift rechts daneben (ui/panels.js)
+  button(x, y, w, h, icon, label, sub, onTap, opts) {
+    return labelButton(this, x, y, w, h, icon, label, sub, onTap, opts);
   }
 
   tapContinue(btn) {

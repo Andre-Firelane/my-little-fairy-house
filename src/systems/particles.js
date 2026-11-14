@@ -74,13 +74,18 @@ export default class Sparkles {
         blendMode: 'ADD',
         ...config,
       })
-      .setDepth(depth);
+      .setDepth(depth)
+      .setVisible(this.detail);
     this.parent?.add(e);
+    (this.all ??= []).push(e);
     return e;
   }
 
+  // ohne Detail (Baum-Übersicht) sind alle Effekte aus – und unsichtbar, sonst kostet jeder leere Emitter
+  // beim Zeichnen einen Wechsel des Mischmodus (bei vielen Räumen und Feen auf dem Tablet spürbar)
   setDetail(on) {
     this.detail = on;
+    for (const e of this.all ?? []) e.setVisible(on);
     for (const t of this.trails) {
       if (on) t.start();
       else t.stop();

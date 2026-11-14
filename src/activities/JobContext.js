@@ -65,9 +65,8 @@ export default class JobContext {
     this.onAbortFns.push(fn);
   }
 
-  think(textureKey, seconds) {
-    this.director.bubbles.show(this.f, textureKey, seconds);
-  }
+  // früher: Gedankenblase zur Tätigkeit. Blasen zeigen jetzt nur noch Wünsche (ActivityDirector) – hier nichts mehr.
+  think() {}
 
   // ---- Raum abfragen ----
 

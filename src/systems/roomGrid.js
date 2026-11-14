@@ -4,6 +4,7 @@
 // geo = Maße und Form des Raums (systems/roomGeometry.js): geo.ceil[c] = nutzbare Zeilen in Spalte c.
 
 import { furnitureById } from '../config/furniture.js';
+import { railSpots } from '../config/balcony.js';
 
 const rectOf = (gx, gy, def) => ({ x0: gx, x1: gx + def.w, y0: gy, y1: gy + def.h });
 const overlap = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
@@ -65,6 +66,19 @@ export function findSpot(geo, def, cx, cy, items, ignore = new Set()) {
       let top = Infinity;
       for (let c = gx; c < gx + def.w; c++) top = Math.min(top, geo.ceil[c] ?? 0);
       if (top - def.h >= 1) consider(gx, top - def.h, null);
+    }
+  } else if (def.rail) {
+    // hängt außen an den Haken der Balkonpfosten (neben dem Raster): nur diese festen Plätze
+    for (const { gx, gy } of railSpots(geo, def.w, def.h)) {
+      const r = rectOf(gx, gy, def);
+      if (blocked(r)) continue;
+      const dx = gx + def.w / 2 - cx;
+      const dy = gy + def.h / 2 - cy;
+      const score = dx * dx + dy * dy;
+      if (score < bestScore) {
+        bestScore = score;
+        best = { gx, gy, parent: null };
+      }
     }
   } else if (def.kind === 'wall') {
     // frei an der Wand, aber nicht ganz unten am Boden; lieber dort, wo kein Möbel davor steht

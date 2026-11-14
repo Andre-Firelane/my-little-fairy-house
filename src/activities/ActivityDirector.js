@@ -12,14 +12,43 @@ import primp from './primp.js';
 import { play, dance, disco } from './music.js';
 import { light, water, relax } from './home.js';
 import nightSleep from './night.js';
-import { PER_ACTIVITY, LIKED_BONUS, LIKED_AT } from '../config/dust.js';
+import { tend, harvest } from './garden.js';
+import { craft, saw } from './werkstatt.js';
+import { lift, rings, tumble, vault, climb } from './turnraum.js';
+import { paint, pottery } from './atelier.js';
+import { tea } from './teesalon.js';
+import { NEED_DUST, NEED_EVERY, NEED_LASTS, NEED_PAUSE } from '../config/dust.js';
+import { furnitureById, textureKey } from '../config/furniture.js';
 
 // Alle Tätigkeiten. Neue einfach hier eintragen:
 // { id, icon, uses(def) → passt zu diesem Gegenstand?, available?(sticker, director) → gerade möglich?, run(c, sticker) }
-export const ACTIVITIES = [brew, fill, read, write, wipe, sleep, cook, eat, bath, primp, play, dance, disco, light, water, relax];
+export const ACTIVITIES = [brew, fill, read, write, wipe, sleep, cook, eat, bath, primp, play, dance, disco, light, water, relax, tend, harvest,
+  craft, saw, lift, rings, tumble, vault, climb, paint, pottery, tea];
+
+// Wünsche: nur Tätigkeiten, deren Gegenstand man in dieser Raumart bauen kann (Schlafen am Tag ausgenommen)
+const buildable = (a, catalog) => catalog.some((id) => {
+  const def = furnitureById(id);
+  return def && a.uses(def);
+});
+const wishesFor = (catalog) => ACTIVITIES.filter((a) => a.id !== 'sleep' && buildable(a, catalog));
+
+// Bild in der Wunschblase: ein Gegenstand, den es in dieser Raumart gibt (das Standardbild der Tätigkeit,
+// wenn es passt – sonst der erste passende aus dem Katalog, z. B. Blumenkasten statt Vase im Garten)
+function wishIcon(a, catalog) {
+  const fitting = catalog.filter((id) => {
+    const def = furnitureById(id);
+    return def && (a.uses(def) || a.wishAlso?.(def));
+  });
+  if (fitting.some((id) => a.icon.startsWith(textureKey(id)))) return a.icon;
+  const def = furnitureById(fitting[0]);
+  return def ? textureKey(def.id, 0, def.cardState ?? null) : a.icon;
+}
 
 // Regie eines Raums: Feen suchen sich selbst etwas zu tun (nach ihren Vorlieben), das Kind kann sie auch
 // auf einen Gegenstand ziehen. Kümmert sich um Reservierungen und sauberes Abbrechen.
+// Wünsche: ab und zu (oder wenn man sie antippt) wünscht sich eine Fee etwas aus ihrer Raumart (rosa Blase).
+// Zieht man sie auf einen passenden Gegenstand, ist der Wunsch erfüllt: Feenstaub – nur dafür. Fehlt der Gegenstand,
+// muss man ihn bauen. Eine Fee mit Wunsch wartet: sie erfüllt ihn nicht selbst und wechselt nicht das Zimmer.
 // life = das Raum-Leben (life/RoomLife.js) mit Feen, Raumansicht, Spielstand und Glitzer.
 export default class ActivityDirector {
   constructor(life) {
@@ -29,10 +58,12 @@ export default class ActivityDirector {
     this.reserved = new Set(); // Item-uids, die gerade eine Fee benutzt
     this.idle = new Map(); // fairy → Sekunden bis zur nächsten eigenen Idee
     this.bubbles = new ThoughtBubbles(life.scene, life.layer);
+    this.needTimer = rand(...NEED_EVERY) * 0.5;
   }
 
   update(dt) {
     const night = this.scene.clock?.night;
+    this.updateNeeds(dt, night);
     // Geister (Geisterstunde) beschäftigen sich wie Feen am Tag – sie gehen nicht ins Bett
     for (const f of [...this.life.fairies, ...this.life.ghosts]) {
       if (this.jobs.has(f) || f.state !== 'wander') continue;
@@ -40,6 +71,7 @@ export default class ActivityDirector {
         this.goToBed(f);
         continue;
       }
+      if (f.need) continue; // wartet darauf, dass man ihr hilft
       const t = (this.idle.get(f) ?? rand(1.5, 4)) - dt;
       this.idle.set(f, t);
       if (t <= 0) {
@@ -91,6 +123,7 @@ export default class ActivityDirector {
     // Bett und Sitzplatz gehören dann dieser Fee; Teppich und Boden teilen sich mehrere
     const uid = spot.tier <= 2 ? spot.sticker.item.uid : null;
     if (uid && this.reserved.has(uid)) return false;
+    this.clearNeed(f);
     return this.startJob(f, nightSleep, spot, uid);
   }
 
@@ -117,24 +150,79 @@ export default class ActivityDirector {
     if (this.jobs.get(job.f) !== job) return;
     this.jobs.delete(job.f);
     if (cleanup) job.ctx.cleanup();
-    else {
-      job.ctx.release();
-      this.reward(job);
-    }
+    else job.ctx.release();
     job.f.dropCarry();
     job.f.resetPose();
     job.f.wander();
     this.idle.set(job.f, rand(3, 7));
   }
 
-  // fertige Tätigkeit einer Fee → Feenstaub (Lieblingstätigkeit: mehr); Geister und die Nachtruhe bringen nichts
-  reward(job) {
-    const { f, activity } = job;
-    if (f.isGhost || activity.id === 'night' || !this.life.view) return;
-    const liked = (f.palette.likes?.[activity.id] ?? 1) >= LIKED_AT;
-    const amount = PER_ACTIVITY * (liked ? LIKED_BONUS : 1);
+  // ---------- Wünsche ----------
+
+  updateNeeds(dt, night) {
+    const now = this.scene.time.now;
+    const fairies = this.life.fairies;
+    for (const f of fairies) if (f.need && now > f.need.until) this.clearNeed(f);
+    // Blasen nur im geöffneten Raum: nur dort kann man die Fee packen
+    const open = this.scene.activeRoom?.life === this.life;
+    for (const f of fairies) {
+      if (!f.need) continue;
+      if (open && !this.bubbles.has(f)) this.bubbles.show(f, f.need.icon ?? f.need.activity.icon, (f.need.until - now) / 1000);
+      if (!open && this.bubbles.has(f)) this.bubbles.hide(f, true);
+    }
+    if (night || !this.life.view) return;
+    this.needTimer -= dt;
+    if (this.needTimer > 0) return;
+    this.needTimer = rand(...NEED_EVERY);
+    if (fairies.some((f) => f.need)) return; // je Zimmer nur ein Wunsch auf einmal
+    // (eine Fee, deren Wunsch gerade erfüllt wurde, hat erst einmal Pause)
+    const idle = fairies.filter((f) => f.state === 'wander' && !this.jobs.has(f) && now > (f.needPause ?? 0));
+    if (idle.length) this.giveNeed(pick(idle));
+  }
+
+  // Wunsch nach Vorliebe der Fee – nur etwas, das zu dieser Raumart gehört
+  giveNeed(f) {
+    const all = wishesFor(this.life.view?.typeDef?.catalog || []);
+    const options = all.length > 1 ? all.filter((a) => a.id !== f.lastNeed) : all;
+    if (!options.length) return false;
+    const weight = (a) => f.palette.likes?.[a.id] ?? 1;
+    let r = Math.random() * options.reduce((sum, a) => sum + weight(a), 0);
+    const activity = options.find((a) => (r -= weight(a)) <= 0) || options[0];
+    f.need = { activity, icon: wishIcon(activity, this.life.view?.typeDef?.catalog || []), until: this.scene.time.now + NEED_LASTS * 1000 };
+    f.lastNeed = activity.id;
+    this.life.sparkles.twinkle(f.x, f.y - 40, 4);
+    return true;
+  }
+
+  clearNeed(f) {
+    if (!f.need) return;
+    f.need = null;
+    this.bubbles.hide(f);
+  }
+
+  // passt dieser Gegenstand zum Wunsch der Fee? (egal, ob die Tätigkeit gerade möglich ist)
+  fitsNeed(f, target) {
+    const a = f.need?.activity;
+    return !!(a && target?.def && (a.uses(target.def) || a.wishAlso?.(target.def)));
+  }
+
+  // Wunsch erfüllt: Glitzer, Feenstaub fliegt ins Glas, Blase weg, Pause. Dann macht sie es – oder, wenn das
+  // gerade nicht geht (z. B. kein Obst zum Backen), freut sie sich nur und dreht eine Glitzerrunde.
+  fulfill(f, target) {
+    if (!this.fitsNeed(f, target)) return false;
+    const activity = f.need.activity;
+    this.clearNeed(f);
+    f.needPause = this.scene.time.now + NEED_PAUSE * 1000;
+    this.life.sparkles.burst(f.x, f.y - 20, 18);
     const w = this.life.view.toWorld(f.x, f.y - 20);
-    this.scene.giveDust?.(amount, w.x, w.y);
+    this.scene.giveDust?.(NEED_DUST, w.x, w.y);
+    // auf ein Hilfsding gezogen (z. B. Gießkanne): das eigentliche Ziel suchen (z. B. eine durstige Pflanze)
+    if (!activity.uses(target.def)) target = pick(this.targets(activity)) ?? target;
+    const canDo = activity.uses(target.def) && !this.reserved.has(target.item.uid) && (activity.available?.(target, this) ?? true);
+    if (canDo && this.start(f, activity, target)) return true;
+    f.wander();
+    f.visit({ x: target.x, y: target.y - target.H * 0.6 }, null, { duration: 1.6, spread: 20 });
+    return true;
   }
 
   abort(f) {
@@ -158,10 +246,13 @@ export default class ActivityDirector {
     for (const f of [...this.jobs.keys()]) this.abort(f);
   }
 
-  // Fee antippen: zeigt, was sie gerade macht – oder sucht sich gleich etwas aus
+  // Fee antippen: sie wünscht sich gleich etwas (hat sie schon einen Wunsch, wackelt die Blase)
   tap(f) {
-    const job = this.jobs.get(f);
-    if (job) return this.bubbles.show(f, job.activity.icon, 1.4);
-    if (f.state === 'wander') this.startAuto(f);
+    if (f.isGhost) return;
+    if (f.need) return this.bubbles.nudge(f);
+    if (this.scene.clock?.night) return;
+    this.abort(f);
+    if (f.state !== 'wander') f.wander();
+    this.giveNeed(f);
   }
 }

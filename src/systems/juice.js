@@ -25,18 +25,36 @@ export function wobble(scene, target, { angle = 7, duration = 90, times = 3 } = 
   });
 }
 
-// Antipp-Feedback: kurz breit und flach, dann zurück
+// Antipp-Feedback: kurz breit und flach, dann zurück.
+// Zurück geht es immer auf die Ruhegröße: target.restScale (Möbel: 1), sonst die Größe vor der ersten Quetschung.
+// Wichtig, wenn eine neue Quetschung kommt, solange die alte noch läuft (Schrank auf und gleich wieder zu) –
+// sonst würde die halb gequetschte Größe zur neuen Ausgangsgröße und der Gegenstand bliebe verformt.
 export function squish(scene, target, { amount = 0.1, duration = 100 } = {}) {
-  const sx = target.scaleX;
-  const sy = target.scaleY;
-  return scene.tweens.add({
+  let base;
+  if (target.restScale != null) base = { x: target.restScale, y: target.restScale };
+  else {
+    if (!target._squish) target._squishBase = { x: target.scaleX, y: target.scaleY };
+    base = target._squishBase;
+  }
+  if (target._squish) target._squish.stop();
+  target.setScale(base.x, base.y);
+  const done = () => {
+    if (target._squish !== tween) return;
+    target._squish = null;
+    target.setScale(base.x, base.y);
+  };
+  const tween = scene.tweens.add({
     targets: target,
-    scaleX: sx * (1 + amount),
-    scaleY: sy * (1 - amount),
+    scaleX: base.x * (1 + amount),
+    scaleY: base.y * (1 - amount),
     duration,
     yoyo: true,
     ease: 'Quad.Out',
+    onComplete: done,
+    onStop: done,
   });
+  target._squish = tween;
+  return tween;
 }
 
 export function fadeIn(scene, target, duration = 300) {

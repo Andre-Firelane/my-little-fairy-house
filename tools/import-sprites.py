@@ -2,6 +2,9 @@
 
     python tools/import-sprites.py <Ordner Lieferung 1> [<Ordner Lieferung 2> …] [Baumkrone.webp] [Baumrinde.webp] [Rasen.webp]
 
+Die Originale liegen in art-source/ (z. B. art-source/scenario-assets5 = Balkon-Garten,
+scenario-assets6 = Staffelei, Blütensofa, Kamin, Teetisch, Baumfenster und Haustür).
+
 Jede Lieferung hat unten ihre eigene Zuordnung "Datei → Gegenstand" (die Dateinamen wiederholen sich).
 
 - entfernt den halbtransparenten Schleier/Schein um die Motive (weiche Kanten bleiben)
@@ -449,8 +452,105 @@ def delivery_4():
     save(limit(crop(Image.composite(glow, lamp, bulb))), 'deckenlampe@on')
 
 
+# ================================================================ Lieferung 5: Balkon-Garten
+GARDEN = {
+    'Wald_neu.png': 'baeumchen',
+    'Wald_neu-2.png': 'gartenbank',
+    'Wald_neu-3.png': 'giesskanne',
+    'Wald_neu-4.png': 'haengeblumenkasten',
+    'Wald_neu-5.png': 'hochbeet',
+}
+
+
+def cut_inside(im, tol=26):
+    """Innenfläche des Balkon-Rahmens (cremefarben) von der Mitte aus durchsichtig machen. Gibt Bild und
+    Rechteck der Innenfläche (x0, y0, x1, y1) zurück. Lichterkette und Rahmen bleiben (die Füllung stoppt dort)."""
+    w, h = im.size
+    px = im.load()
+    sx, sy = w // 2, h // 2
+    base = px[sx, sy][:3]
+    seen = bytearray(w * h)
+    like = lambda c: c[3] > 200 and sum(abs(c[i] - base[i]) for i in range(3)) < tol * 3
+
+    checked = bytearray(w * h)
+
+    def fill(sx, sy, min_area=0):
+        q = deque([(sx, sy)])
+        checked[sy * w + sx] = 1
+        box = [sx, sy, sx, sy]
+        region = []
+        while q:
+            x, y = q.popleft()
+            region.append(y * w + x)
+            box = [min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y)]
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= nx < w and 0 <= ny < h and not checked[ny * w + nx] and like(px[nx, ny]):
+                    checked[ny * w + nx] = 1
+                    q.append((nx, ny))
+        if len(region) >= min_area:  # kleine Flächen (Glühbirnen der Lichterkette) bleiben stehen
+            for i in region:
+                seen[i] = 1
+        return box
+
+    x0, y0, x1, y1 = fill(sx, sy)
+    # Reste zwischen den Bögen der Lichterkette (von der Mitte abgetrennt): weitere größere Flächen derselben Farbe
+    for yy in range(y0, y1, 3):
+        for xx in range(x0, x1, 3):
+            if not checked[yy * w + xx] and like(px[xx, yy]):
+                fill(xx, yy, 1500)
+    mask = Image.frombytes('L', (w, h), bytes(255 if v else 0 for v in seen))
+    mask = mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(1))
+    a = im.split()[3]
+    out = im.copy()
+    out.putalpha(Image.composite(Image.new('L', im.size, 0), a, mask))
+    return out, (x0, y0, x1 + 1, y1 + 1)
+
+
+def delivery_5():
+    for src, name in GARDEN.items():
+        save(limit(crop(clean(load(src)))), name)
+    # Balkon: Pergola, Lichterkette, Deck und Streben; innen durchsichtig. Innenfläche vermessen → balcony.json
+    frame = crop(clean(load('Wald_neu-6.png')), 0)
+    frame, inner = cut_inside(frame)
+    k = min(1.0, 1024 / max(frame.size))
+    frame = frame.resize((round(frame.width * k), round(frame.height * k)), Image.LANCZOS) if k < 1 else frame
+    save(frame, 'balkon')
+    info = {'w': frame.width, 'h': frame.height, 'inner': [round(v * k) for v in inner]}
+    with open(os.path.join(ROOT, 'src', 'config', 'balcony.json'), 'w') as f:
+        json.dump(info, f)
+    print('Balkon', info)
+
+
+# ================================================================ Lieferung 6: Atelier, Teesalon, Baumfenster und Haustür
+# (bisher im Spiel gezeichnet; Baumfenster und Haustür malt TreeScene in den Stamm)
+SALON = {
+    'Wald_neu-3.png': 'staffelei',
+    'Wald_neu-7.png': 'bluetensofa',
+    'Wald_neu-8.png': 'kamin',
+    'Wald_neu-9.png': 'kamin_on',
+    'Wald_neu-10.png': 'teetisch',
+    'Wald_neu-11.png': 'baumfenster',
+    'Wald_neu-12.png': 'haustuer',
+}
+
+
+def delivery_6():
+    for src, name in SALON.items():
+        if name.startswith('kamin'):
+            continue
+        save(limit(crop(clean(load(src)))), name)
+    # Kamin aus/an: gemeinsamer Zuschnitt, damit beim Anzünden nichts springt (das Feuer leuchtet etwas über den Rand)
+    off, on = clean(load('Wald_neu-8.png')), clean(load('Wald_neu-9.png'))
+    bb = [off.split()[3].point(lambda v: 255 if v > 8 else 0).getbbox(), on.split()[3].point(lambda v: 255 if v > 8 else 0).getbbox()]
+    box = (max(0, min(b[0] for b in bb) - 4), max(0, min(b[1] for b in bb) - 4),
+           min(off.width, max(b[2] for b in bb) + 4), min(off.height, max(b[3] for b in bb) + 4))
+    save(limit(off.crop(box)), 'kamin')
+    save(limit(on.crop(box)), 'kamin_on')
+
+
 # ================================================================ Ablauf
-DELIVERIES = {'scenario-assets1': delivery_1, 'scenario-assets2': delivery_2, 'scenario-assets3': delivery_3, 'scenario-assets4': delivery_4}
+DELIVERIES = {'scenario-assets1': delivery_1, 'scenario-assets2': delivery_2, 'scenario-assets3': delivery_3, 'scenario-assets4': delivery_4,
+              'scenario-assets5': delivery_5, 'scenario-assets6': delivery_6}
 frames = None
 for SRC in sys.argv[1:]:
     base = os.path.basename(os.path.normpath(SRC))

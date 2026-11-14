@@ -3,9 +3,11 @@ import Fairy from '../objects/Fairy.js';
 import Ghost from '../objects/Ghost.js';
 import ActivityDirector from '../activities/ActivityDirector.js';
 import { rand } from '../systems/motion.js';
+import { grow } from '../activities/garden.js';
+import { GROW_TIME } from '../config/garden.js';
 
 // Feen-Größe in Raum-Koordinaten (etwa eine Rasterzelle hoch)
-export const FAIRY_SCALE = 1;
+export const FAIRY_SCALE = 1.3; // Feen etwas größer, damit man die gemalten Teile gut erkennt
 // so viele Feen ziehen in jedes eingerichtete Zimmer ein
 export const FAIRIES_PER_ROOM = 2;
 
@@ -238,8 +240,23 @@ export default class RoomLife {
     return !!this.view && this.state.items.length >= (this.view.typeDef.furnishedAt ?? 4);
   }
 
+  // Pflanzen wachsen langsam von selbst (gießen geht schneller, siehe activities/garden.js); einmal je Sekunde
+  growPlants(dt) {
+    this.growAcc = (this.growAcc ?? 0) + dt;
+    if (this.growAcc < 1 || !this.view) return;
+    const step = this.growAcc;
+    this.growAcc = 0;
+    for (const s of this.view.stickers.values()) {
+      const it = s.item;
+      if (!s.def.plant || !it || s.carried || it.state === 'g3' || this.director.reserved.has(it.uid)) continue;
+      it.growT = (it.growT ?? 0) + step;
+      if (it.growT >= GROW_TIME) grow(this.scene, s, this.detail ? this.sparkles : null);
+    }
+  }
+
   update(dt, onScreen) {
     if (this.dead) return;
+    this.growPlants(dt);
     this.updateNight(dt);
     this.director.update(dt);
     if (this.view) this.syncLights();

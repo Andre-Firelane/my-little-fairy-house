@@ -2,7 +2,7 @@
 // Hochformat (Tablet): 1080 breit. Querformat (PC): so breit wie das Fenster (höchstens 2:1) –
 // der Baum bekommt dann links und rechts Himmel und Wiese, die Bedienleisten bleiben mittig UI_W breit.
 
-import { sway, TREEHOUSE, OX, OY } from './treeShape.js';
+import { sway, halfWidth, TRUNK_X, TREEHOUSE, OX, OY } from './treeShape.js';
 
 export const UI_W = 1080; // Breite der Bedienung (Leisten, Knöpfe); im Querformat mittig
 export const GAME_H = 1920;
@@ -27,17 +27,21 @@ export const BAR_TOP = GAME_H - BAR_H;
 // Baum (2400 × 5000) plus Platz für die große Krone oben und zu den Seiten
 export const WORLD_W = 2400 + 2 * OX;
 export const WORLD_H = 5000 + OY;
-// Zoomgrenzen: im Hochformat füllt der Baum ganz herausgezoomt die Breite;
-// im Querformat darf man genauso weit hinaus (Baum fast ganz zu sehen) und nicht ganz so nah heran.
-export let MIN_ZOOM = UI_W / WORLD_W;
-export let MAX_ZOOM = 1.5;
-export const START_ZOOM = 0.6;
+// Zoomgrenzen: ganz herausgezoomt ist der Stamm etwa bildschirmbreit (die Krone darf seitlich hinausragen,
+// man wischt dann hin und her) – nicht weiter, damit man die Feen noch gut sieht; nah heran geht es bis
+// MAX_ZOOM (im Querformat etwas weniger, der Bildschirm ist dort breiter).
+const TREE_MIN_ZOOM = 0.38;
+export let MIN_ZOOM = Math.max(UI_W / WORLD_W, TREE_MIN_ZOOM);
+export let MAX_ZOOM = 2.2;
+export const START_ZOOM = 0.8;
+// Raumansicht: mindestens so nah (große Räume passen dann nicht ganz aufs Bild, man schiebt sie hin und her)
+export const ROOM_MIN_ZOOM = 2.5;
 
 export function setGameWidth(w) {
   GAME_W = w;
   const landscape = w > UI_W;
-  MIN_ZOOM = UI_W / WORLD_W;
-  MAX_ZOOM = landscape ? 1.15 : 1.5;
+  MIN_ZOOM = Math.max(UI_W / WORLD_W, TREE_MIN_ZOOM);
+  MAX_ZOOM = landscape ? 1.7 : 2.2;
 }
 
 // Räume im Baum: Innenraum (Raum-Koordinaten, 80 px je Rasterfeld) wird so verkleinert
@@ -88,8 +92,18 @@ const RAW_SLOTS = [
   { id: 9, x: 1564, y: 3780, cols: 14, rows: 7, shape: 'arch' },
   // Etage 6
   { id: 10, x: 1200, y: 4229, cols: 18, rows: 6, shape: 'rect' },
+  // Balkone außen am Stamm (nur für den Garten): x ergibt sich aus der Stammkante, side = links/rechts
+  { id: 11, y: 2060, cols: 8, rows: 4, shape: 'rect', balcony: true, side: -1 },
+  { id: 12, y: 3560, cols: 8, rows: 4, shape: 'rect', balcony: true, side: 1 },
 ];
-export const SLOTS = RAW_SLOTS.map((s) => ({ ...s, x: Math.round(s.x + (s.treehouse ? 0 : sway(s.y))) + OX, y: s.y + OY }));
+
+// Balkon: halbe Breite in der Welt (Raster + Rand, etwa wie roomGeometry), etwas in den Stamm geschoben
+const balconyX = (s) => TRUNK_X + sway(s.y) + s.side * (halfWidth(s.y) + ((s.cols * 80 + 204) * TREE_SCALE) / 2 - 40);
+
+export const SLOTS = RAW_SLOTS.map((s) => {
+  const x = s.balcony ? balconyX(s) : s.x + (s.treehouse ? 0 : sway(s.y));
+  return { ...s, x: Math.round(x) + OX, y: s.y + OY };
+});
 
 export const DEPTH = {
   sky: -10,

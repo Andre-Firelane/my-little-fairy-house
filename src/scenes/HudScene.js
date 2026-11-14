@@ -4,7 +4,7 @@ import { GLASS } from '../config/dust.js';
 import { EVENTS } from '../events/index.js';
 import { dust } from '../state/dust.js';
 import { save, saveNow } from '../state/save.js';
-import { cardImage, iconButton } from '../ui/panels.js';
+import { cardImage, iconButton, labelButton } from '../ui/panels.js';
 import { iconImage } from '../ui/icons.js';
 import { bakedImage } from '../systems/bake.js';
 import { popIn, squish, wobble } from '../systems/juice.js';
@@ -325,11 +325,11 @@ export default class HudScene extends Phaser.Scene {
     const m = this.add.container(0, 0);
     const veil = this.add.rectangle(0, 0, GAME_W, GAME_H, 0x2b2150, 0.6).setOrigin(0).setInteractive();
     veil.on('pointerup', () => this.closeMenu()); // neben die Tafel tippen schließt
-    const panel = cardImage(this, 560, 700, 44, 0xe2b6ff).setPosition(cx, cy).setInteractive();
-    const resume = iconButton(this, cx, cy - 210, 380, 150, 'play', () => this.closeMenu());
-    const saveBtn = iconButton(this, cx, cy, 380, 150, 'save', () => this.saveFromMenu(saveBtn));
-    if (save.testMode) saveBtn.setAlpha(0.4);
-    const home = iconButton(this, cx, cy + 210, 380, 150, 'home', () => this.toTitle());
+    const panel = cardImage(this, 760, 760, 44, 0xe2b6ff).setPosition(cx, cy).setInteractive();
+    const resume = labelButton(this, cx, cy - 230, 640, 170, 'play', 'Weiterspielen', null, () => this.closeMenu());
+    const saveBtn = labelButton(this, cx, cy, 640, 170, 'save', 'Speichern', savedLine(), () => this.saveFromMenu(saveBtn));
+    if (save.testMode) saveBtn.setAlpha(0.5);
+    const home = labelButton(this, cx, cy + 230, 640, 170, 'home', 'Zum Hauptmenü', null, () => this.toTitle());
     m.add([veil, panel, resume, saveBtn, home]);
     m.setAlpha(0);
     this.tweens.add({ targets: m, alpha: 1, duration: 180 });
@@ -348,12 +348,16 @@ export default class HudScene extends Phaser.Scene {
 
   saveFromMenu(btn) {
     if (save.testMode) return wobble(this, btn);
-    if (!saveNow()) return wobble(this, btn);
-    // geklappt: grüner Haken springt auf den Knopf
-    const ok = iconImage(this, 'check', 90).setPosition(btn.x + 150, btn.y - 40);
+    if (!saveNow()) {
+      btn.setSub('Speichern hat nicht geklappt');
+      return wobble(this, btn);
+    }
+    // geklappt: grüner Haken springt auf den Knopf, darunter die Uhrzeit
+    btn.setSub(savedLine());
+    const ok = iconImage(this, 'check', 90).setPosition(btn.x + 260, btn.y - 40);
     this.menu?.add(ok);
     popIn(this, ok, { from: 0, to: ok.scale, duration: 600 });
-    this.burst(btn.x + 150, btn.y - 40, 10);
+    this.burst(btn.x + 260, btn.y - 40, 10);
     this.time.delayedCall(1400, () => ok.active && this.tweens.add({ targets: ok, alpha: 0, duration: 300, onComplete: () => ok.destroy() }));
   }
 
@@ -384,6 +388,14 @@ export default class HudScene extends Phaser.Scene {
     const invite = this.mode === 'tree' && !this.events_ && !this.menu && this.tree.canStartHappening?.() && dust.full;
     this.jar.angle = invite ? Math.sin(time / 140) * 6 * Math.max(0, Math.sin(time / 900)) ** 8 : 0;
   }
+}
+
+// zweite Zeile am Speichern-Knopf (wie im Zoo)
+function savedLine() {
+  if (save.testMode) return 'Test-Spiel – wird nicht gespeichert';
+  if (!save.lastSaved) return 'noch nicht gespeichert';
+  const t = new Date(save.lastSaved).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return `zuletzt gespeichert: ${t} Uhr`;
 }
 
 // kleines Glas (im Event-Fenster): leer oder gefüllt

@@ -32,6 +32,10 @@ export default class Ghost extends Fairy {
 
   setOutfit() {}
 
+  usesPaintedLook() {
+    return false; // Geister bleiben gezeichnet
+  }
+
   // Ärmchen (Ursprung an der Schulter, damit das Flügelschlagen zum Winken wird)
   makeWing(side) {
     const p = this.palette;

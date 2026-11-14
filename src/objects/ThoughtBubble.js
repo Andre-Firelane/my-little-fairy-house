@@ -1,9 +1,9 @@
-import Phaser from 'phaser';
 import { DEPTH } from '../config/layout.js';
 import { popIn } from '../systems/juice.js';
 import { bakedImage } from '../systems/bake.js';
 
-// Gedankenblase über einer Fee, zeigt den Gegenstand, den sie sich gerade wünscht.
+// Bedürfnis-Blase über einer Fee (rosa, pulsierend): zeigt, was sie sich gerade wünscht (Bild der Tätigkeit).
+// Sie bleibt, bis man den Wunsch erfüllt oder er nach einer Weile verblasst (siehe ActivityDirector).
 // parent: Container, in dem die Feen wohnen (Blasen in Raum-Koordinaten); enabled = Detailstufe
 export default class ThoughtBubbles {
   constructor(scene, parent = null) {
@@ -13,34 +13,37 @@ export default class ThoughtBubbles {
     this.bubbles = new Map(); // fairy → { box, until }
   }
 
+  has(fairy) {
+    return this.bubbles.has(fairy);
+  }
+
   show(fairy, textureKey, seconds = 1.5) {
     this.hide(fairy, true);
     if (!this.enabled) return;
     const s = this.scene;
     const box = s.add.container(0, 0).setDepth(DEPTH.fx + 1);
     this.parent?.add(box);
-    const g = bakedImage(s, 'bubble', 140, 150, (b) => {
-      b.fillStyle(0x5a3a7a, 0.15);
-      b.fillCircle(3, 5, 54);
-      b.fillStyle(0xffffff, 1);
-      b.fillCircle(0, 0, 54);
-      b.fillCircle(-44, 52, 11);
-      b.fillCircle(-60, 72, 6);
-      b.lineStyle(4, 0xe2b6ff, 1);
-      b.strokeCircle(0, 0, 54);
-    }, { ox: 72, oy: 62 });
-    const img = s.add.image(0, 0, textureKey);
-    img.setScale(Math.min(74 / img.width, 74 / img.height));
-    box.add([g, img]);
+    const inner = s.add.container(0, 0, [needBubble(s), needIcon(s, textureKey, 74)]);
+    box.add(inner);
     popIn(s, box, { from: 0, to: 1, duration: 500 });
-    this.bubbles.set(fairy, { box, until: s.time.now + seconds * 1000 });
+    // sanftes Pulsieren, damit man den Wunsch bemerkt
+    s.tweens.add({ targets: inner, scale: { from: 1, to: 1.1 }, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.bubbles.set(fairy, { box, inner, until: s.time.now + seconds * 1000 });
     this.follow(fairy, box);
+  }
+
+  // kurz wackeln (Fee mit Wunsch wurde angetippt)
+  nudge(fairy) {
+    const b = this.bubbles.get(fairy);
+    if (!b) return;
+    this.scene.tweens.add({ targets: b.box, angle: { from: -12, to: 12 }, duration: 80, yoyo: true, repeat: 2, onComplete: () => b.box.setAngle(0) });
   }
 
   hide(fairy, instant = false) {
     const b = this.bubbles.get(fairy);
     if (!b) return;
     this.bubbles.delete(fairy);
+    this.scene.tweens.killTweensOf(b.inner);
     if (instant) return b.box.destroy();
     this.scene.tweens.add({ targets: b.box, scale: 0, alpha: 0, duration: 220, ease: 'Back.In', onComplete: () => b.box.destroy() });
   }
@@ -60,4 +63,28 @@ export default class ThoughtBubbles {
       if (now > b.until) this.hide(fairy);
     }
   }
+}
+
+// Blase eines Wunsches: weiß mit dickem rosa Rand und kleinem Herz (auch für die Baumansicht, siehe HudScene)
+export function needBubble(scene) {
+  return bakedImage(scene, 'bubble-need', 150, 160, (b) => {
+    b.fillStyle(0x5a3a7a, 0.18);
+    b.fillCircle(3, 6, 56);
+    b.fillStyle(0xffffff, 1);
+    b.fillCircle(0, 0, 56);
+    b.fillCircle(-46, 54, 12);
+    b.fillCircle(-62, 74, 7);
+    b.lineStyle(7, 0xff7ab8, 1);
+    b.strokeCircle(0, 0, 56);
+    // Herz oben rechts
+    b.fillStyle(0xff5fa8, 1);
+    b.fillCircle(38, -46, 9);
+    b.fillCircle(52, -46, 9);
+    b.fillTriangle(30, -42, 60, -42, 45, -24);
+  }, { ox: 75, oy: 66 });
+}
+
+export function needIcon(scene, textureKey, size) {
+  const img = scene.add.image(0, 0, textureKey);
+  return img.setScale(Math.min(size / img.width, size / img.height));
 }

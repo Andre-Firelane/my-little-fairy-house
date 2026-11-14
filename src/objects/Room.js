@@ -4,6 +4,7 @@ import { CELL, STICKER_PAD, textureKey, furnitureById } from '../config/furnitur
 import RoomLife from '../life/RoomLife.js';
 import RoomView from './RoomView.js';
 import { FURN_RES } from '../config/quality.js';
+import { BALCONY } from '../config/balcony.js';
 
 // Vorschaubild eines Raumtyps (Karten in der Leiste, Ghost beim Ziehen): gemalter Zimmerrahmen,
 // Wand in der Farbe des Typs, davor typische Möbel als gemalte Sprites (def.preview, siehe config/rooms.js).
@@ -25,6 +26,43 @@ export function roomArtImage(scene, def) {
     const iy1 = H * 0.9;
     const hex = (c) => `#${c.toString(16).padStart(6, '0')}`;
     const it = def.interior;
+    const floorY = iy1 - H * 0.08;
+    if (def.open) {
+      // Balkon-Garten: Himmel statt Wand, Pergola und Holzdeck
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, '#9fd8ff');
+      sky.addColorStop(1, '#e8f6ff');
+      ctx.fillStyle = sky;
+      ctx.beginPath();
+      ctx.roundRect(8, 8, W - 16, H - 16, 26);
+      ctx.fill();
+      if (scene.textures.exists('spr-balkon')) {
+        // gemalter Rahmen: Innenkante unten = Boden der Vorschau
+        const img = scene.textures.get('spr-balkon').getSourceImage();
+        const k = (W * 0.94) / BALCONY.w;
+        ctx.drawImage(img, (W - BALCONY.w * k) / 2, floorY - BALCONY.inner[3] * k, BALCONY.w * k, BALCONY.h * k);
+      } else {
+      ctx.fillStyle = '#b07a4a';
+      ctx.strokeStyle = '#4a2a18';
+      ctx.lineWidth = 4;
+      for (const px of [W * 0.12, W * 0.88]) {
+        ctx.beginPath();
+        ctx.roundRect(px - 8, H * 0.18, 16, floorY - H * 0.18, 5);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.roundRect(W * 0.06, H * 0.13, W * 0.88, 16, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = hex(it.floor);
+      ctx.strokeStyle = '#4a2a18';
+      ctx.beginPath();
+      ctx.roundRect(W * 0.04, floorY, W * 0.92, 18, 7);
+      ctx.fill();
+      ctx.stroke();
+      }
+    } else {
     ctx.fillStyle = hex(it.wall);
     ctx.fillRect(ix0, iy0, ix1 - ix0, iy1 - iy0);
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
@@ -35,11 +73,11 @@ export function roomArtImage(scene, def) {
         ctx.fill();
       }
     }
-    const floorY = iy1 - H * 0.08;
     ctx.fillStyle = hex(it.wainscot);
     ctx.fillRect(ix0, floorY - 34, ix1 - ix0, 34);
     ctx.fillStyle = hex(it.floor);
     ctx.fillRect(ix0, floorY, ix1 - ix0, iy1 - floorY);
+    }
 
     // Möbel: alle auf einen gemeinsamen Maßstab (ein Rasterfeld = cell px)
     const entries = (def.preview || []).map((e) => (typeof e === 'string' ? { id: e } : e));
@@ -47,7 +85,7 @@ export function roomArtImage(scene, def) {
     const cell = 36;
     const gap = 6;
     const size = (id) => {
-      const img = scene.textures.get(textureKey(id)).getSourceImage();
+      const img = scene.textures.get(textureKey(id, 0, furnitureById(id)?.cardState ?? null)).getSourceImage();
       const s = cell / CELL;
       return { img, w: (img.width * s) / FURN_RES, h: (img.height * s) / FURN_RES, pad: STICKER_PAD * s };
     };
@@ -68,8 +106,8 @@ export function roomArtImage(scene, def) {
       const y = e.on != null ? base.top + m.pad + 2 : base.top - cell * 0.5;
       ctx.drawImage(m.img, cx - m.w / 2, y - m.h + m.pad, m.w, m.h);
     }
-    // Rahmen obendrauf
-    ctx.drawImage(frame, 0, 0, W, H);
+    // Rahmen obendrauf (der Balkon hat keinen)
+    if (!def.open) ctx.drawImage(frame, 0, 0, W, H);
     tex.refresh();
   }
   return scene.add.image(0, 0, key);
@@ -92,8 +130,7 @@ export default class Room extends Phaser.GameObjects.Container {
       .image(0, -this.h * 0.05, 'sparkle')
       .setScale((this.w / 32) * 0.85, (this.h / 32) * 0.75)
       .setTint(0xffe9a8)
-      .setAlpha(0)
-      .setBlendMode('ADD');
+      .setAlpha(0); // (normaler Mischmodus: spart beim Zeichnen je Raum zwei Wechsel)
 
     this.view = new RoomView(scene, 0, 0, state, def, geo).setScale(TREE_SCALE);
     this.add([this.view, this.light]);
@@ -104,10 +141,10 @@ export default class Room extends Phaser.GameObjects.Container {
   }
 
   glowOn() {
-    this.scene.tweens.add({ targets: this.light, alpha: 0.06, duration: 600, ease: 'Sine.Out' });
+    this.scene.tweens.add({ targets: this.light, alpha: 0.04, duration: 600, ease: 'Sine.Out' });
     this.scene.tweens.add({
       targets: this.light,
-      alpha: { from: 0.06, to: 0.11 },
+      alpha: { from: 0.04, to: 0.08 },
       duration: 1800,
       delay: 600,
       yoyo: true,

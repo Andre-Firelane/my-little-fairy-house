@@ -239,6 +239,26 @@ const ICONS = {
     fillStar(g, -40, -30, 9, 4, 5);
   },
 
+  // Garten: Blumentopf mit Pflänzchen und Blüte
+  garten(g) {
+    g.fillStyle(0x3f8a3c, 1);
+    g.fillRect(-3, -30, 6, 34);
+    g.fillStyle(0x6fbf5a, 1);
+    g.fillEllipse(-18, -8, 30, 14);
+    g.fillEllipse(18, -16, 30, 14);
+    g.fillStyle(0xff7ab8, 1);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      g.fillCircle(Math.cos(a) * 11, -36 + Math.sin(a) * 11, 8);
+    }
+    g.fillStyle(0xffd166, 1);
+    g.fillCircle(0, -36, 6);
+    g.fillStyle(0xd9774a, 1);
+    g.fillPoints([{ x: -30, y: 6 }, { x: 30, y: 6 }, { x: 22, y: 46 }, { x: -22, y: 46 }], true);
+    g.fillStyle(0xe8946a, 1);
+    g.fillRoundedRect(-34, 0, 68, 12, 5);
+  },
+
   // Badezimmer: Badewanne mit Schaum
   bad(g) {
     g.fillStyle(0xe0b04a, 1);
@@ -261,6 +281,178 @@ const ICONS = {
     g.fillCircle(-22, 16, 4);
     g.fillCircle(0, 16, 4);
     g.fillCircle(22, 16, 4);
+  },
+
+  // Werkstatt: Hammer und Schraubenschlüssel über Kreuz
+  werkstatt(g) {
+    g.fillStyle(0x7d8a99, 1);
+    rotRect(g, 4, 4, 12, 78, -Math.PI / 4);
+    g.fillCircle(-22, -22, 16);
+    g.fillStyle(0xfff4fb, 1);
+    rotRect(g, -26, -26, 12, 18, -Math.PI / 4);
+    g.fillStyle(0xe0a872, 1);
+    rotRect(g, -2, 4, 12, 76, Math.PI / 4);
+    g.fillStyle(0x9c6a43, 1);
+    rotRect(g, 18, -16, 46, 20, -Math.PI / 4);
+    g.fillStyle(0xb9c4d0, 1);
+    rotRect(g, 22, -20, 40, 8, -Math.PI / 4);
+  },
+
+  // Turnraum: zwei Turnringe an Seilen
+  turnraum(g) {
+    g.fillStyle(0x7d8a99, 1);
+    g.fillRoundedRect(-36, -48, 72, 8, 4);
+    g.lineStyle(5, 0xe0c497, 1);
+    g.lineBetween(-20, -42, -20, 6);
+    g.lineBetween(20, -42, 20, 6);
+    g.lineStyle(9, 0xd9894a, 1);
+    g.strokeCircle(-20, 24, 17);
+    g.strokeCircle(20, 24, 17);
+    g.fillStyle(0xffd166, 1);
+    fillStar(g, 0, -20, 9, 4, 5);
+  },
+
+  // Malatelier: Farbpalette mit bunten Klecksen und Pinsel
+  atelier(g) {
+    g.fillStyle(0xe0a872, 1);
+    g.fillEllipse(-4, 6, 92, 72);
+    g.fillStyle(0xfff4fb, 1);
+    g.fillCircle(18, 24, 10); // Daumenloch
+    const blobs = [[-30, -6, 0xff5f8f], [-12, -22, 0xffd23f], [12, -20, 0x5fb8ff], [-28, 20, 0x6fdc8c], [26, -2, 0x9b7bff]];
+    for (const [x, y, c] of blobs) {
+      g.fillStyle(c, 1);
+      g.fillCircle(x, y, 9);
+    }
+    g.fillStyle(0x9c6a43, 1);
+    rotRect(g, 26, -30, 8, 52, Math.PI / 4);
+    g.fillStyle(0xb9c4d0, 1);
+    rotRect(g, 8, -12, 10, 12, Math.PI / 4);
+    g.fillStyle(0xff5f8f, 1);
+    g.fillCircle(2, -6, 6);
+  },
+
+  // ---- Feen anpassen (ui/fairyLookMenu.js) ----
+
+  // Frisur: Kopf mit Bob und Pony
+  hair(g) {
+    g.fillStyle(0x8d5524, 1);
+    g.fillCircle(0, -6, 40);
+    g.fillRoundedRect(-40, -6, 80, 40, 16);
+    g.fillStyle(0xffe0c7, 1);
+    g.fillCircle(0, 8, 25);
+    g.fillStyle(0x8d5524, 1);
+    g.fillEllipse(-4, -14, 58, 22);
+    g.fillStyle(0xb8773c, 1);
+    g.fillEllipse(-16, -30, 18, 8);
+    g.fillStyle(0x3b2a4a, 1);
+    g.fillCircle(-9, 10, 3.5);
+    g.fillCircle(9, 10, 3.5);
+    g.fillStyle(0xff8fa8, 0.6);
+    g.fillCircle(-15, 19, 5);
+    g.fillCircle(15, 19, 5);
+  },
+
+  // Kleid: Oberteil mit Puffärmeln, weiter Rock
+  dress(g) {
+    g.fillStyle(0xff7ab8, 1);
+    g.fillCircle(-22, -26, 11);
+    g.fillCircle(22, -26, 11);
+    g.fillRoundedRect(-18, -38, 36, 36, 8);
+    g.fillPoints([{ x: -16, y: -6 }, { x: 16, y: -6 }, { x: 40, y: 40 }, { x: -40, y: 40 }], true);
+    g.fillStyle(0xffffff, 1);
+    g.fillEllipse(0, -38, 18, 8);
+    g.fillStyle(0xffd166, 1);
+    g.fillRoundedRect(-19, -8, 38, 7, 3);
+    g.fillStyle(0xffffff, 0.8);
+    for (const [x, y] of [[-18, 24], [0, 14], [18, 26], [-6, 32]]) g.fillCircle(x, y, 3);
+  },
+
+  // Hautfarbe: drei Farbtupfer
+  skin(g) {
+    const tones = [0xffd3b9, 0xc98c5e, 0x6e4228];
+    tones.forEach((c, i) => {
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / 3;
+      const x = Math.cos(a) * 20;
+      const y = Math.sin(a) * 20;
+      g.fillStyle(0x5a3a7a, 0.2);
+      g.fillCircle(x, y + 4, 24);
+      g.fillStyle(c, 1);
+      g.fillCircle(x, y, 24);
+      g.lineStyle(4, 0xffffff, 1);
+      g.strokeCircle(x, y, 24);
+    });
+  },
+
+  // Flügel: zwei Flügelpaare
+  wings(g) {
+    for (const s of [-1, 1]) {
+      g.fillStyle(0xbfe9ff, 1);
+      g.fillEllipse(s * 22, -14, 44, 34);
+      g.fillEllipse(s * 16, 18, 28, 24);
+      g.lineStyle(4, 0x7fb8e8, 1);
+      g.strokeEllipse(s * 22, -14, 44, 34);
+      g.strokeEllipse(s * 16, 18, 28, 24);
+    }
+    g.fillStyle(0xffd166, 1);
+    g.fillEllipse(0, 0, 10, 40);
+  },
+
+  // Gesicht: rundes Gesicht mit großen Augen und Lächeln
+  face(g) {
+    g.fillStyle(0xffe0c7, 1);
+    g.fillCircle(0, 0, 42);
+    g.lineStyle(4, 0xc98a6a, 1);
+    g.strokeCircle(0, 0, 42);
+    g.fillStyle(0x5a3a2a, 1);
+    g.fillEllipse(-15, -4, 16, 20);
+    g.fillEllipse(15, -4, 16, 20);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(-12, -8, 4);
+    g.fillCircle(18, -8, 4);
+    g.fillStyle(0xff8fa8, 0.6);
+    g.fillCircle(-26, 12, 7);
+    g.fillCircle(26, 12, 7);
+    g.lineStyle(4, 0x8a4a3a, 1);
+    g.beginPath();
+    g.arc(0, 12, 10, 0.3, Math.PI - 0.3);
+    g.strokePath();
+  },
+
+  // Zauberstab mit Stern
+  wand(g) {
+    g.lineStyle(9, 0xc98a4a, 1);
+    g.lineBetween(-30, 38, 10, -6);
+    g.fillStyle(0xfff3a8, 0.5);
+    g.fillCircle(16, -14, 34);
+    g.fillStyle(0xffd166, 1);
+    fillStar(g, 16, -14, 28, 12, 5);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(10, -20, 4);
+  },
+
+  // Teesalon: Teetasse mit Dampf
+  teesalon(g) {
+    g.lineStyle(5, 0xc9b8e8, 1);
+    for (const x of [-12, 8]) {
+      g.beginPath();
+      g.moveTo(x, -16);
+      g.lineTo(x + 6, -28);
+      g.lineTo(x, -40);
+      g.lineTo(x + 6, -50);
+      g.strokePath();
+    }
+    g.fillStyle(0xffffff, 1);
+    g.fillEllipse(0, 36, 96, 18);
+    g.lineStyle(8, 0xff9ec7, 1);
+    g.strokeCircle(34, 6, 11);
+    g.fillStyle(0xff9ec7, 1);
+    g.fillPoints([{ x: -34, y: -10 }, { x: 34, y: -10 }, { x: 24, y: 30 }, { x: -24, y: 30 }], true);
+    g.fillStyle(0xb86a32, 1);
+    g.fillEllipse(0, -10, 66, 12);
+    g.fillStyle(0xffd166, 1);
+    g.fillRect(-32, -4, 64, 4);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(-6, 12, 5);
   },
 };
 

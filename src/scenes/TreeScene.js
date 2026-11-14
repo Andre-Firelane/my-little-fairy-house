@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import {
   GAME_W, GAME_H, BAR_TOP, BAR_H, WORLD_W, WORLD_H, MIN_ZOOM, MAX_ZOOM, START_ZOOM,
-  SLOTS, DEPTH, COLORS, TREE_SCALE, EDIT_ROOM_Y, SWATCH_Y, UI_W,
+  SLOTS, DEPTH, COLORS, TREE_SCALE, EDIT_ROOM_Y, SWATCH_Y, UI_W, ROOM_MIN_ZOOM,
 } from '../config/layout.js';
 import { roomById } from '../config/rooms.js';
 import Slot from '../objects/Slot.js';
 import Room from '../objects/Room.js';
 import Sparkles from '../systems/particles.js';
-import Placement from '../systems/placement.js';
+import Placement, { fits } from '../systems/placement.js';
 import { popIn, wobble } from '../systems/juice.js';
 import { makeRng, clamp, lerpColor } from '../systems/motion.js';
 import DayNight from '../systems/dayNight.js';
@@ -15,7 +15,8 @@ import { paintTiles } from '../systems/bake.js';
 import TREE_PARTS from '../config/tree.json';
 import { BG_RES } from '../config/quality.js';
 import { createRoom, house, snapshot } from '../state/house.js';
-import { CELL } from '../config/furniture.js';
+import { CELL, furnitureById } from '../config/furniture.js';
+import { BALCONY, balconyFit, railSpots } from '../config/balcony.js';
 import {
   TRUNK_X, TRUNK_TOP, GROUND_Y, sway, halfWidth, trunkOutline, BRANCHES, ROOTS, CROWN, WINDOWS, DOOR, bez, OX, OY,
 } from '../config/treeShape.js';
@@ -73,8 +74,10 @@ export default class TreeScene extends Phaser.Scene {
           house.rooms.delete(state.slotId);
           continue;
         }
+        if (slot.balcony) hangOnPegs(state.items, slot.geo);
         const room = this.makeRoom(slot, def, state, slot.x, slot.y);
         slot.room = room;
+        if (slot.balcony) slot.setVisible(false); // Balkon ist durchsichtig: Platz-Umriss nicht durchscheinen lassen
         room.glowOn();
         this.rooms.push(room);
       }
@@ -86,7 +89,7 @@ export default class TreeScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       if (saveHandlers.snapshot) saveHandlers.snapshot = null;
     });
-    this.placement.on('selection', (id) => this.slots.forEach((s) => s.setPulse(!!id)));
+    this.placement.on('selection', (id) => this.slots.forEach((s) => s.setPulse(!!id && fits(s, id))));
 
     // Kamera: eigener Zustand (Mitte + Zoom), wird in apply() auf die Phaser-Kamera übertragen
     this.camView = { x: WORLD_W / 2, y: 700, zoom: MIN_ZOOM };
@@ -330,7 +333,7 @@ export default class TreeScene extends Phaser.Scene {
   onSlotTap(slot) {
     if (slot.room || this.placement.dragging) return;
     const id = this.placement.selected;
-    if (!id) {
+    if (!id || !fits(slot, id)) {
       wobble(this, slot, { angle: 2.5 });
       return;
     }
@@ -355,6 +358,7 @@ export default class TreeScene extends Phaser.Scene {
       ease: 'Cubic.Out',
       onComplete: () => {
         slot.room = room;
+        if (slot.balcony) slot.setVisible(false); // Balkon ist durchsichtig: Platz-Umriss nicht durchscheinen lassen
         popIn(this, room, { from: 0.7, to: 1, duration: 950 });
         this.sparkles.burst(slot.x, slot.y, 44);
         room.glowOn();
@@ -382,8 +386,24 @@ export default class TreeScene extends Phaser.Scene {
   // Raum-Mitte auf dem Bildschirm bei EDIT_ROOM_Y (unten ist die Leiste)
   roomView(slot) {
     const room = slot.room;
-    const zoom = Math.min((GAME_W - 24) / room.w, (SWATCH_Y - 60 - 230) / room.h);
-    return { x: slot.x, y: slot.y + (GAME_H / 2 - EDIT_ROOM_Y) / zoom, zoom };
+    // Balkon: die Blumenkästen hängen außen an den Pfosten – die sollen mit ins Bild
+    const w = slot.balcony ? Math.max(room.w, (BALCONY.w * balconyFit(slot.geo).sx + 2 * CELL) * TREE_SCALE) : room.w;
+    const fit = Math.min((GAME_W - 24) / w, (SWATCH_Y - 60 - 230) / room.h);
+    const zoom = Math.max(fit, Math.min(ROOM_MIN_ZOOM, (SWATCH_Y - 60 - 230) / room.h)); // nah heran, Höhe passt immer
+    const y = slot.y + (GAME_H / 2 - EDIT_ROOM_Y) / zoom;
+    // wie weit man den Raum schieben darf (halbe Überbreite in Welt-Pixeln)
+    this.roomPan = { x0: slot.x, y0: y, rx: Math.max(0, (w - (GAME_W - 24) / zoom) / 2) };
+    return { x: slot.x, y, zoom };
+  }
+
+  // Raumansicht mit dem Finger verschieben (Bildschirm-Pixel), nur so weit, wie der Raum über den Rand ragt
+  panRoom(dx, dy) {
+    const p = this.roomPan;
+    if (!p || this.transitioning || this.mode !== 'room') return;
+    const v = this.camView;
+    v.x = clamp(v.x - dx / v.zoom, p.x0 - p.rx, p.x0 + p.rx);
+    v.y = p.y0;
+    this.applyView();
   }
 
   openRoom(slot) {
@@ -427,7 +447,10 @@ export default class TreeScene extends Phaser.Scene {
     this.rooms = this.rooms.filter((r) => r !== room); // zuerst raus, damit die Feen richtig gezählt werden
     this.residents.evacuate(room); // Feen ziehen in andere Zimmer um (oder fliegen davon)
     room.life.dispose(); // Tätigkeiten beenden
-    if (slot) slot.room = null;
+    if (slot) {
+      slot.room = null;
+      slot.setVisible(true);
+    }
     house.rooms.delete(slot?.id);
     room.disableInteractive();
     this.time.delayedCall(450, () => {
@@ -476,6 +499,10 @@ export default class TreeScene extends Phaser.Scene {
     const bark = this.textures.get('tree-rinde-1').getSourceImage();
     const crowns = TREE_PARTS_KEYS.map((k) => this.textures.get(k).getSourceImage());
     const shaded = crowns.map((img) => darken(img, 'rgba(25, 45, 40, 0.3)'));
+    // gemalte Baumfenster und Haustür (Lieferung 6); ohne Bild zeichnet der Code sie
+    const sprite = (name) => this.textures.exists(`spr-${name}`) && this.textures.get(`spr-${name}`).getSourceImage();
+    const windowImg = sprite('baumfenster');
+    const doorImg = sprite('haustuer');
     const pieces = crownLayout(crowns.length);
     const house = SLOTS.find((s) => s.treehouse);
     paintTiles(this, 'tree', WORLD_W, WORLD_H, (ctx) => {
@@ -555,8 +582,24 @@ export default class TreeScene extends Phaser.Scene {
       ivy(ctx, 1, 4640, 3850, makeRng(22));
 
       // runde Fenster zwischen den Räumen, Tür am Stammfuß
-      for (const w of WINDOWS) roundWindow(ctx, w.x + sway(w.y), w.y, w.r);
-      door(ctx, DOOR.x + sway(DOOR.y - 200), DOOR.y, DOOR.w, DOOR.h);
+      for (const w of WINDOWS) {
+        const x = w.x + sway(w.y);
+        if (!windowImg) roundWindow(ctx, x, w.y, w.r);
+        else {
+          // so breit wie der alte Rahmen; das runde Glas sitzt etwa bei 42 % der Bildhöhe
+          const dw = (w.r + 20) * 2.15;
+          const dh = (dw * windowImg.height) / windowImg.width;
+          ctx.drawImage(windowImg, x - dw / 2, w.y - dh * 0.42, dw, dh);
+        }
+      }
+      const dx = DOOR.x + sway(DOOR.y - 200);
+      if (!doorImg) door(ctx, dx, DOOR.y, DOOR.w, DOOR.h);
+      else {
+        // Tür mit Laterne und Pilzen, unten auf den Stufen der alten Tür
+        const dw = DOOR.w * 3.1;
+        const dh = (dw * doorImg.height) / doorImg.width;
+        ctx.drawImage(doorImg, dx - dw / 2, DOOR.y + 22 - dh, dw, dh);
+      }
 
       // Krone: Blätterbüschel an den Astenden (hinten dunkler, vorne hell)
       for (const pc of pieces) {
@@ -584,6 +627,19 @@ export default class TreeScene extends Phaser.Scene {
       }
     }, { res: BG_RES, depth: DEPTH.tree });
     this.halos = []; // Lichter hängen jetzt gemalt an der Krone
+  }
+}
+
+// Blumenkästen aus älteren Spielständen (andere Plätze) an freie Haken des Balkons hängen, sonst entfernen
+function hangOnPegs(items, geo) {
+  for (const it of [...items]) {
+    const def = furnitureById(it.id);
+    if (!def?.rail) continue;
+    const spots = railSpots(geo, def.w, def.h);
+    if (spots.some((s) => s.gx === it.gx && s.gy === it.gy)) continue;
+    const free = spots.find((s) => !items.some((o) => o !== it && o.gx === s.gx && o.gy === s.gy));
+    if (free) Object.assign(it, { gx: free.gx, gy: free.gy, parent: null });
+    else items.splice(items.indexOf(it), 1);
   }
 }
 
@@ -719,7 +775,7 @@ function leaf(ctx, x, y, s, rot, color) {
 }
 
 // rundes Fenster mit Holzrahmen, warmem Licht, Vorhängen und Blumenkasten
-function roundWindow(ctx, x, y, r) {
+export function roundWindow(ctx, x, y, r) {
   ctx.fillStyle = 'rgba(30, 15, 5, 0.35)';
   ctx.beginPath();
   ctx.arc(x + 4, y + 8, r + 20, 0, Math.PI * 2);
@@ -789,7 +845,7 @@ function roundWindow(ctx, x, y, r) {
 }
 
 // kleine runde Haustür am Stammfuß mit Steinbogen, Stufen, Laterne und Pilzen; (x, bottom) = Mitte unten
-function door(ctx, x, bottom, w, h) {
+export function door(ctx, x, bottom, w, h) {
   const top = bottom - h;
   const arch = (pad) => {
     ctx.beginPath();

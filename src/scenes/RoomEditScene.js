@@ -10,13 +10,14 @@ import { barImage, cardImage, iconButton } from '../ui/panels.js';
 import { iconImage } from '../ui/icons.js';
 import { roomArtImage } from '../objects/Room.js';
 import { bakedImage } from '../systems/bake.js';
+import FairyLookMenu from '../ui/fairyLookMenu.js';
 
 const CARD_W = 180;
 const CARD_H = 240;
 const CARD_STEP = 200;
 const DRAG_START = 14;
 const HOLD_ABOVE = 50; // gezogenes Item schwebt etwas über dem Finger (Bildschirm-Pixel)
-const FAIRY_GRAB = 57; // so nah (Raum-Koordinaten) muss der Finger an einer Fee sein
+const FAIRY_GRAB = 72; // so nah (Raum-Koordinaten) muss der Finger an einer Fee sein
 
 // Motiv eines neuen Gegenstands (Bilder, Teppiche …): zufällig
 const pickVariant = (def) => (def.variants > 1 ? { v: Math.floor(Math.random() * def.variants) } : {});
@@ -132,6 +133,8 @@ export default class RoomEditScene extends Phaser.Scene {
 
   // Wandfarben: Reihe runder Farbtupfer über der Gegenstands-Leiste
   makeSwatches() {
+    this.swatches = [];
+    if (this.typeDef.open) return; // Balkon: keine Wand, keine Wandfarben
     const n = WALL_COLORS.length;
     const step = 112;
     this.ui.add(barImage(this, 'swatch-bar', UI_W / 2 - (n * step) / 2 - 10, SWATCH_Y - 52, n * step + 20, 104, 0.92));
@@ -228,11 +231,20 @@ export default class RoomEditScene extends Phaser.Scene {
     }
     const s = this.view.hitTest(l.x, l.y);
     if (s) this.press = { source: 'room', def: s.def, sticker: s, item: s.item, x0: p.x, y0: p.y, drag: false };
+    // freie Stelle: Raum hin und her schieben (große Räume passen nicht ganz aufs Bild)
+    else this.press = { source: 'pan', x0: p.x, y0: p.y, lastX: p.x, lastY: p.y, drag: false };
   }
 
   onMove(p) {
     const press = this.press;
     if (!press) return;
+    if (press.source === 'pan') {
+      if (!press.drag && Math.hypot(p.x - press.x0, p.y - press.y0) > DRAG_START) press.drag = true;
+      if (press.drag) this.tree.panRoom(p.x - press.lastX, p.y - press.lastY);
+      press.lastX = p.x;
+      press.lastY = p.y;
+      return;
+    }
     const dx = p.x - press.x0;
     const dy = p.y - press.y0;
     if (!press.drag && !press.scroll && Math.hypot(dx, dy) > DRAG_START) {
@@ -312,7 +324,9 @@ export default class RoomEditScene extends Phaser.Scene {
     press.fairy.pos = { x: l.x, y: l.y - 20 };
     const s = this.view.hitTest(l.x, l.y);
     const d = this.life.director;
-    press.target = s && !d.reserved.has(s.item.uid) && d.activityFor(s) ? s : null;
+    // mit Wunsch: der passende Gegenstand zählt immer (auch wenn er gerade benutzt wird oder etwas fehlt)
+    const fits = s && d.fitsNeed(press.fairy, s);
+    press.target = s && (fits || (!d.reserved.has(s.item.uid) && d.activityFor(s))) ? s : null;
     this.view.showMarker(press.target?.item ?? null, press.target?.def);
   }
 
@@ -322,10 +336,12 @@ export default class RoomEditScene extends Phaser.Scene {
     if (!press.drag) {
       squish(this.tree, f, { amount: 0.15 });
       f.sparkles.twinkle(f.x, f.y - 20, 3);
-      d.tap(f);
+      if (f.painted) this.openLookMenu(f); // Fee antippen: Aussehen anpassen
+      else d.tap(f);
       return;
     }
     const t = press.target;
+    if (t && d.fulfill(f, t)) return; // Wunsch erfüllt: Feenstaub!
     if (t && d.start(f, d.activityFor(t), t)) f.sparkles.twinkle(f.x, f.y, 6);
     else f.wander();
   }
@@ -337,7 +353,7 @@ export default class RoomEditScene extends Phaser.Scene {
     this.life.draggingUids = new Set();
     this.view.showGrid(null);
     this.view.showMarker(null);
-    if (press.scroll || press.source === 'traybg') return;
+    if (press.scroll || press.source === 'traybg' || press.source === 'pan') return;
     if (press.source === 'fairy') return this.releaseFairy(press);
 
     if (!press.drag) {
@@ -393,10 +409,12 @@ export default class RoomEditScene extends Phaser.Scene {
     const T = this.tree;
     const p = this.view.cellPos(item.gx, item.gy, sticker.def);
     T.tweens.killTweensOf(sticker);
+    sticker._squish = null; // (eine abgebrochene Quetschung zählt nicht mehr)
     T.tweens.add({
       targets: sticker,
       x: p.x,
       y: p.y,
+      scale: sticker.restScale ?? 1, // beim Hochheben war er größer: wieder normal
       duration: 140,
       ease: 'Cubic.Out',
       onComplete: () => {
@@ -461,6 +479,18 @@ export default class RoomEditScene extends Phaser.Scene {
       this.snap(c.sticker, c.item, false);
     });
     this.view.sortItems();
+  }
+
+  // Aussehen einer Fee anpassen (Frisur, Gesicht, Kleid, Zauberstab, Haut, Flügel)
+  openLookMenu(fairy) {
+    if (this.modal) return;
+    this.modal = new FairyLookMenu(this, fairy, () => (this.modal = null));
+  }
+
+  // alle Feen des Hauses (Zimmer und unterwegs) – ein geändertes Aussehen gilt für alle mit demselben Namen
+  allFairies() {
+    const rooms = this.tree.slots.filter((s) => s.room).map((s) => s.room.life.fairies);
+    return [...rooms.flat(), ...(this.tree.residents?.travelers ?? [])];
   }
 
   // zurück in den Baum – die Feen machen einfach weiter
