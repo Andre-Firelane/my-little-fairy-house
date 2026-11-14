@@ -104,8 +104,10 @@ export default class TreeScene extends Phaser.Scene {
     this.scene.launch('UI');
     this.scene.launch('Hud');
 
-    // zum Testen: ?event=geister startet die Geisterstunde gleich (kostenlos)
-    if (new URLSearchParams(location.search).get('event') === 'geister') this.time.delayedCall(3500, () => this.startHappening('ghost'));
+    // zum Testen: ?event=geister startet die Geisterstunde gleich (kostenlos),
+    // ?event=lichter startet das Lichterfest
+    const testEvent = { geister: 'ghost', lichter: 'lights' }[new URLSearchParams(location.search).get('event')];
+    if (testEvent) this.time.delayedCall(3500, () => this.startHappening(testEvent));
 
     // Fenster geändert (Hoch-/Querformat): Wiese an den Seiten ergänzen, Kamera neu begrenzen
     this.paintSideMeadows();
@@ -139,6 +141,11 @@ export default class TreeScene extends Phaser.Scene {
     this.clock.update(dt);
     const dark = this.clock.darkness;
     this.nightVeil.setAlpha(dark * 0.45).setVisible(dark > 0.001);
+    const warm = this.clock.warm;
+    if (warm !== this.veilWarm) {
+      this.veilWarm = warm;
+      this.nightVeil.setFillStyle(lerpColor(0x1d1846, 0x6a2a5a, warm), 1); // Abend: Schleier in Abendrot
+    }
     const rimTint = lerpColor(0xffffff, 0x8f88c8, dark);
     for (const room of this.rooms) room.view.rim.setTint(rimTint);
 

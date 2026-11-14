@@ -165,6 +165,48 @@ const ICONS = {
     g.fillEllipse(-6, 12, 8, 10);
   },
 
+  // Lichterfest: Lichterkette oben, darunter eine leuchtende Laterne am Stab
+  lantern(g) {
+    // Lichterkette
+    g.lineStyle(3, 0x5a3a7a, 1);
+    const wire = [];
+    for (let i = 0; i <= 20; i++) {
+      const u = i / 20;
+      wire.push({ x: -46 + u * 92, y: -40 + 18 * 4 * u * (1 - u) });
+    }
+    g.strokePoints(wire);
+    [0xff8fc0, 0x8fdcff, 0xffd166, 0xb6f58a, 0xd3a6ff].forEach((c, i) => {
+      const u = (i + 0.5) / 5;
+      const x = -46 + u * 92;
+      const y = -40 + 18 * 4 * u * (1 - u);
+      g.fillStyle(c, 0.35);
+      g.fillCircle(x, y + 7, 10);
+      g.fillStyle(c, 1);
+      g.fillEllipse(x, y + 7, 9, 12);
+    });
+    // Stab und Laterne
+    g.lineStyle(5, 0x8a5a3b, 1);
+    g.lineBetween(-30, 46, 20, -14);
+    g.lineStyle(2.5, 0x5a3a7a, 1);
+    g.lineBetween(20, -14, 20, -6);
+    g.fillStyle(0xffd166, 0.35);
+    g.fillCircle(20, 18, 32);
+    g.fillStyle(0xff9a3c, 1);
+    g.fillEllipse(20, 18, 46, 40);
+    g.fillStyle(0xffc46b, 1);
+    g.fillEllipse(20, 19, 28, 26);
+    g.fillStyle(0xfff3c4, 1);
+    g.fillEllipse(20, 20, 12, 12);
+    g.lineStyle(2.5, 0xc0602a, 1);
+    g.strokeEllipse(20, 18, 22, 40);
+    g.lineBetween(20, -2, 20, 38);
+    g.lineStyle(3, 0x5a3a7a, 1);
+    g.strokeEllipse(20, 18, 46, 40);
+    g.fillStyle(0x5a3a7a, 1);
+    g.fillRoundedRect(8, -6, 24, 7, 3);
+    g.fillRoundedRect(10, 36, 20, 6, 3);
+  },
+
   // ---- Zimmerarten ----
 
   // Schlafzimmer: Mondsichel mit Sternen

@@ -58,10 +58,67 @@ export function flapWings(wingL, wingR, flap) {
   }
 }
 
+// Laterne (Lichterfest): Stab in der Hand statt Zauberstab, an seiner Spitze hängt eine runde Papierlaterne.
+// Maße in Figur-Koordinaten (Ursprung = Schulter-Anker, wie die gemalten Teile)
+const HAND = [-17, 14];
+export const LANTERN_HOOK = [-38, -17]; // Spitze des Stabs, dort hängt die Laterne
+
+function lanternStick(scene) {
+  return bakedImage(scene, 'lantern-stick', 60, 60, (g) => {
+    g.lineStyle(3.2, 0x5a3a24, 1);
+    g.lineBetween(HAND[0] + 5, HAND[1] + 7, LANTERN_HOOK[0], LANTERN_HOOK[1]);
+    g.lineStyle(1.6, 0x9e6b47, 1);
+    g.lineBetween(HAND[0] + 5, HAND[1] + 7, LANTERN_HOOK[0] + 0.6, LANTERN_HOOK[1] + 0.4);
+  }, { ox: 50, oy: 30, res: FAIRY_RES });
+}
+
+// runde Papierlaterne in der Farbe der Fee, Ursprung am Haken (sie schaukelt um ihn)
+function lanternImage(scene, color) {
+  const light = (c, k) => {
+    const r = (c >> 16) & 255, gg = (c >> 8) & 255, b = c & 255;
+    return (Math.round(r + (255 - r) * k) << 16) | (Math.round(gg + (255 - gg) * k) << 8) | Math.round(b + (255 - b) * k);
+  };
+  return bakedImage(scene, `lantern-${color}`, 34, 40, (g) => {
+    const cy = 15;
+    g.lineStyle(1.2, 0x5a3a24, 1);
+    g.lineBetween(0, 0, 0, 4); // Faden
+    g.fillStyle(light(color, 0.25), 1);
+    g.fillEllipse(0, cy, 22, 19);
+    g.fillStyle(light(color, 0.7), 1); // Licht von innen
+    g.fillEllipse(0, cy + 1, 13, 12);
+    g.fillStyle(0xfff6c8, 1);
+    g.fillEllipse(0, cy + 1.5, 6, 6);
+    // Rippen
+    g.lineStyle(1, 0x6a3a50, 0.35);
+    g.strokeEllipse(0, cy, 11, 19);
+    g.lineBetween(0, cy - 9.5, 0, cy + 9.5);
+    g.lineStyle(1.3, 0x6a3a50, 0.9);
+    g.strokeEllipse(0, cy, 22, 19);
+    // Deckel und Boden
+    g.fillStyle(0x3b2a4a, 1);
+    g.fillRoundedRect(-6, 4, 12, 3.5, 1.5);
+    g.fillRoundedRect(-5, cy + 8.5, 10, 3, 1.5);
+    // Quaste
+    g.lineStyle(1.4, light(color, 0.1), 1);
+    g.lineBetween(0, cy + 11, 0, cy + 17);
+    g.lineBetween(-1.5, cy + 15, 0, cy + 11);
+    g.lineBetween(1.5, cy + 15, 0, cy + 11);
+  }, { ox: 17, oy: 2, res: FAIRY_RES * 1.5 });
+}
+
+// Laterne mit warmem Schein in einem Container (am Haken), zum Schaukeln
+function makeLantern(scene, palette) {
+  const glow = scene.add.image(0, 16, 'sparkle').setTint(0xffc66e).setScale(2.8).setAlpha(0.8).setBlendMode('ADD');
+  const box = scene.add.container(LANTERN_HOOK[0], LANTERN_HOOK[1], [glow, lanternImage(scene, palette.dress)]).setScale(1.4);
+  box.glow = glow;
+  return box;
+}
+
 // gemalte Fee in einen Container bauen (auch für die Vorschau im Anpassen-Menü):
 // Flügel ganz hinten, dann die Ebenen (Körper, Haut eingefärbt, Kleid, Frisur …), darüber Zubehör der Kleidung.
-// Gibt die beiden Flügel zurück (zum Schlagen).
-export function buildPaintedFigure(scene, container, look, palette, outfit = 'dress', wingRes = FAIRY_RES) {
+// held = 'wand' (Zauberstab) oder 'lantern' (Laterne, Lichterfest)
+// Gibt die beiden Flügel zurück (zum Schlagen) und die Laterne (falls sie eine trägt).
+export function buildPaintedFigure(scene, container, look, palette, outfit = 'dress', wingRes = FAIRY_RES, held = 'wand') {
   container.removeAll(true);
   const wingL = paintedWing(scene, look, palette, -1, wingRes);
   const wingR = paintedWing(scene, look, palette, 1, wingRes);
@@ -77,8 +134,9 @@ export function buildPaintedFigure(scene, container, look, palette, outfit = 'dr
       continue;
     }
     if (slot === 'hairBack' && hair?.back) part = FAIRY_PARTS.hairBack[hair.back];
-    if (!part || !scene.textures.exists(partKey(part))) continue;
-    container.add(partImage(scene, part));
+    if (slot === 'wand' && held === 'lantern') part = { stick: true };
+    if (!part || (!part.stick && !scene.textures.exists(partKey(part)))) continue;
+    container.add(part.stick ? lanternStick(scene) : partImage(scene, part));
     if (slot === 'body' && part.skin && look.skin != null && scene.textures.exists(fileKey(part.skin))) {
       container.add(partImage(scene, part, 1, part.skin).setTint(look.skin));
     }
@@ -91,7 +149,12 @@ export function buildPaintedFigure(scene, container, look, palette, outfit = 'dr
   // obenauf: Schlafmütze bzw. Schürze mit Stirnband
   if (outfit === 'pj') container.add(outfitImage(scene, 'pj-cap'));
   else if (outfit !== 'dress' && !outfitDress) container.add(outfitImage(scene, outfit));
-  return { wingL, wingR };
+  let lantern = null;
+  if (held === 'lantern') {
+    lantern = makeLantern(scene, palette);
+    container.add(lantern);
+  }
+  return { wingL, wingR, lantern };
 }
 
 function outfitImage(scene, name) {
@@ -178,6 +241,7 @@ export default class Fairy extends Phaser.GameObjects.Container {
     const glow = scene.add.image(0, this.painted ? 6 : 0, 'sparkle').setScale(this.painted ? 4.2 : 3.4).setTint(palette.glow).setAlpha(0.42);
     this.glow = glow;
     this.outfit = 'dress';
+    this.held = 'wand'; // 'lantern' beim Lichterfest
     if (this.painted) {
       // gemalte Fee aus Ebenen (config/fairyLooks.js): Flügel hinten, darüber Körper, Kleid, Frisur, …
       this.look = lookOf(palette);
@@ -235,9 +299,10 @@ export default class Fairy extends Phaser.GameObjects.Container {
   }
 
   buildFigure() {
-    const { wingL, wingR } = buildPaintedFigure(this.scene, this.figure, this.look, this.palette, this.outfit);
+    const { wingL, wingR, lantern } = buildPaintedFigure(this.scene, this.figure, this.look, this.palette, this.outfit, FAIRY_RES, this.held);
     this.wingL = wingL;
     this.wingR = wingR;
+    this.lantern = lantern;
     this.body = this.figure; // für Code, der den Körper anspricht
   }
 
@@ -305,6 +370,13 @@ export default class Fairy extends Phaser.GameObjects.Container {
     if (this.painted) return this.buildFigure();
     const key = bake(this.scene, this.bodyKey(outfit), 50, 76, (g) => this.drawBody(g, outfit), 18, 42, FAIRY_RES);
     this.body.setTexture(key);
+  }
+
+  // Zauberstab gegen Laterne tauschen und zurück ('wand' / 'lantern'); nur gemalte Feen tragen Laternen
+  setHeld(kind) {
+    if (kind === this.held) return;
+    this.held = kind;
+    if (this.painted) this.buildFigure();
   }
 
   drawBody(g, outfit = 'dress') {
@@ -511,8 +583,14 @@ export default class Fairy extends Phaser.GameObjects.Container {
     this.visual.rotation = damp(this.visual.rotation, lean, 6, dt);
 
     // Glitzerspur an der Spitze des Zauberstabs (nicht am Ursprung – der liegt am Kinn)
+    // (mit Laterne: an der Laterne)
+    const lan = this.lantern;
+    if (lan) {
+      lan.rotation = damp(lan.rotation, clamp(this.vx * 0.0012, -0.5, 0.5) * this.facing + Math.sin(this.t * 2.6 + this.phase) * 0.14, 5, dt);
+      lan.glow.alpha = 0.7 + Math.sin(this.t * 7 + this.phase) * 0.08 + Math.sin(this.t * 13.3) * 0.05;
+    }
     if (this.painted && this.trail?.followOffset) {
-      const [tx, ty] = FIGURE.wandTip;
+      const [tx, ty] = lan ? [LANTERN_HOOK[0], LANTERN_HOOK[1] + 22] : FIGURE.wandTip;
       const r = this.visual.rotation;
       const lx = tx * this.visual.scaleX;
       const s = this.scaleX;
