@@ -496,6 +496,24 @@ const ICONS = {
     g.fillStyle(0xffffff, 1);
     g.fillCircle(-6, 12, 5);
   },
+
+  // Sternwarte: Mondsichel mit Sternen
+  sternwarte(g) {
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const a = Math.PI * 0.35 + (i / 24) * Math.PI * 1.3; // äußerer Bogen (links)
+      pts.push({ x: -4 + Math.cos(a) * 42, y: 4 + Math.sin(a) * 42 });
+    }
+    for (let i = 24; i >= 0; i--) {
+      const a = Math.PI * 0.42 + (i / 24) * Math.PI * 1.16; // innerer Bogen
+      pts.push({ x: 14 + Math.cos(a) * 32, y: -4 + Math.sin(a) * 32 });
+    }
+    g.fillStyle(0xffd166, 1);
+    g.fillPoints(pts, true);
+    g.fillStyle(0x9b7bff, 1);
+    fillStar(g, 30, 26, 15, 6, 5);
+    fillStar(g, 38, -34, 10, 4, 5);
+  },
 };
 
 export function iconImage(scene, name, size = 60) {

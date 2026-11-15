@@ -69,7 +69,7 @@ export function findSpot(geo, def, cx, cy, items, ignore = new Set()) {
     }
   } else if (def.rail) {
     // hängt außen an den Haken der Balkonpfosten (neben dem Raster): nur diese festen Plätze
-    for (const { gx, gy } of railSpots(geo, def.w, def.h)) {
+    for (const { gx, gy } of railSpots(geo, def.w, def.h, def.railHang)) {
       const r = rectOf(gx, gy, def);
       if (blocked(r)) continue;
       const dx = gx + def.w / 2 - cx;

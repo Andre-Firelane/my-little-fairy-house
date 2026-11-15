@@ -17,13 +17,14 @@ import { craft, saw } from './werkstatt.js';
 import { lift, rings, tumble, vault, climb } from './turnraum.js';
 import { paint, pottery } from './atelier.js';
 import { tea } from './teesalon.js';
+import { stargaze, spin } from './sternwarte.js';
 import { NEED_DUST, NEED_EVERY, NEED_LASTS, NEED_PAUSE } from '../config/dust.js';
 import { furnitureById, textureKey } from '../config/furniture.js';
 
 // Alle Tätigkeiten. Neue einfach hier eintragen:
 // { id, icon, uses(def) → passt zu diesem Gegenstand?, available?(sticker, director) → gerade möglich?, run(c, sticker) }
 export const ACTIVITIES = [brew, fill, read, write, wipe, sleep, cook, eat, bath, primp, play, dance, disco, light, water, relax, tend, harvest,
-  craft, saw, lift, rings, tumble, vault, climb, paint, pottery, tea];
+  craft, saw, lift, rings, tumble, vault, climb, paint, pottery, tea, stargaze, spin];
 
 // Wünsche: nur Tätigkeiten, deren Gegenstand man in dieser Raumart bauen kann (Schlafen am Tag ausgenommen)
 const buildable = (a, catalog) => catalog.some((id) => {

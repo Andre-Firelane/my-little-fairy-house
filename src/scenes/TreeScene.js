@@ -663,7 +663,7 @@ function hangOnPegs(items, geo) {
   for (const it of [...items]) {
     const def = furnitureById(it.id);
     if (!def?.rail) continue;
-    const spots = railSpots(geo, def.w, def.h);
+    const spots = railSpots(geo, def.w, def.h, def.railHang);
     if (spots.some((s) => s.gx === it.gx && s.gy === it.gy)) continue;
     const free = spots.find((s) => !items.some((o) => o !== it && o.gx === s.gx && o.gy === s.gy));
     if (free) Object.assign(it, { gx: free.gx, gy: free.gy, parent: null });

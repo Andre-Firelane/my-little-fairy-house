@@ -30,12 +30,21 @@ export function roomArtImage(scene, def) {
     if (def.open) {
       // Balkon-Garten: Himmel statt Wand, Pergola und Holzdeck
       const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, '#9fd8ff');
-      sky.addColorStop(1, '#e8f6ff');
+      sky.addColorStop(0, def.sky?.[0] ?? '#9fd8ff');
+      sky.addColorStop(1, def.sky?.[1] ?? '#e8f6ff');
       ctx.fillStyle = sky;
       ctx.beginPath();
       ctx.roundRect(8, 8, W - 16, H - 16, 26);
       ctx.fill();
+      if (def.sky) {
+        // Abendhimmel (Sternwarte): ein paar Sterne
+        ctx.fillStyle = '#fff3a8';
+        for (const [sx, sy, r] of [[0.2, 0.12, 2.5], [0.38, 0.22, 1.8], [0.62, 0.1, 2.2], [0.8, 0.24, 2.6], [0.5, 0.32, 1.5], [0.12, 0.34, 1.6]]) {
+          ctx.beginPath();
+          ctx.arc(W * sx, H * sy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       if (scene.textures.exists('spr-balkon')) {
         // gemalter Rahmen: Innenkante unten = Boden der Vorschau
         const img = scene.textures.get('spr-balkon').getSourceImage();

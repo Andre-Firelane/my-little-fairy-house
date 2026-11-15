@@ -29,16 +29,16 @@ export function balconyFit(geo) {
   return { x: left - ix0 * sx, y: top - iy0 * sy, sx, sy };
 }
 
-// Plätze für Blumenkästen (Rasterzellen, wie Items: gx/gy = linke Unterkante): an den gemalten Haken,
-// der Kasten hängt mit seinem oberen Viertel am Haken und ragt nach außen
-export function railSpots(geo, w, h) {
+// Plätze für Blumenkästen und Außenregal (Rasterzellen, wie Items: gx/gy = linke Unterkante): an den gemalten Haken,
+// das Ding hängt mit seinem oberen Viertel (hang = Anteil der Höhe) am Haken und ragt nach außen
+export function railSpots(geo, w, h, hang = 0.25) {
   const f = balconyFit(geo);
   return PEGS.map((p) => {
     const px = f.x + p.x * f.sx;
     const py = f.y + p.y * f.sy;
     const cx = px + p.side * (w * CELL * 0.5 - 14);
     const gx = (cx - geo.gridX0) / CELL - w / 2;
-    const top = (geo.floorY - py) / CELL + h * 0.25;
+    const top = (geo.floorY - py) / CELL + h * hang;
     return { gx: Math.round(gx * 100) / 100, gy: Math.round((top - h) * 100) / 100 };
   });
 }

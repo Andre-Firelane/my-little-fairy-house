@@ -335,6 +335,25 @@ export const ROOMS = [
     preset: [{ id: 'hochbeet', gx: 1, gy: 0 }],
     furnishedAt: 4,
   },
+  {
+    // Sternwarte: wie der Garten eine offene Plattform auf einem Balkon (Raum ohne Wand, dahinter Himmel).
+    // Durchs Teleskop schauen die Feen in die Sterne, am Globus wird gedreht (activities/sternwarte.js),
+    // am Schreibtisch lesen sie Sternkarten; das Außenregal hängt außen an den Haken der Pfosten.
+    id: 'sternwarte',
+    open: true,
+    sky: ['#2a2f6e', '#7a6cc0'], // Himmel der Karte in der Leiste (Abend)
+    preview: ['teleskop', 'schreibtisch', { id: 'globus', on: 1 }],
+    name: 'Sternwarte',
+    wall: 0x3d3a8c,
+    accent: 0x9b7bff,
+    interior: { wall: 0x3d3a8c, wainscot: 0x5f5fc0, floor: 0xc98b5a, floorLine: 0xa86d40 },
+    catalog: [
+      'teleskop', 'globus', 'schreibtisch', 'aussenregal', 'schriftrolle', 'buecher', 'leselampe',
+      'sessel', 'stehpflanze', 'haengepflanze', 'kerze',
+    ],
+    preset: [{ id: 'teleskop', gx: 1, gy: 0 }],
+    furnishedAt: 4,
+  },
 ];
 
 export const roomById = (id) => ROOMS.find((r) => r.id === id);

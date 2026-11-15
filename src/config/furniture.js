@@ -19,6 +19,7 @@ import { GARDEN_FURNITURE } from './garden.js';
 import { WORKSHOP_FURNITURE } from './werkstatt.js';
 import { ATELIER_FURNITURE } from './atelier.js';
 import { TEASALON_FURNITURE } from './teesalon.js';
+import { STARGAZING_FURNITURE } from './sternwarte.js';
 
 export const CELL = 80;
 export const STICKER_PAD = 10;
@@ -1318,8 +1319,8 @@ export const FURNITURE = {
 };
 
 // Gartensachen (Balkon-Garten) stehen in config/garden.js, Werkstatt und Turnraum in config/werkstatt.js,
-// Malatelier in config/atelier.js, Teesalon in config/teesalon.js
-Object.assign(FURNITURE, GARDEN_FURNITURE, WORKSHOP_FURNITURE, ATELIER_FURNITURE, TEASALON_FURNITURE);
+// Malatelier in config/atelier.js, Teesalon in config/teesalon.js, Sternwarte in config/sternwarte.js
+Object.assign(FURNITURE, GARDEN_FURNITURE, WORKSHOP_FURNITURE, ATELIER_FURNITURE, TEASALON_FURNITURE, STARGAZING_FURNITURE);
 
 export const furnitureById = (id) => FURNITURE[id];
 export const textureKey = (id, v = 0, state = null) => `furn-${id}${v ? `-${v}` : ''}${state ? `@${state}` : ''}`;

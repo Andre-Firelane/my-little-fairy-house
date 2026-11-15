@@ -4,7 +4,7 @@
 
 Die Originale liegen in art-source/ (z. B. art-source/scenario-assets5 = Balkon-Garten,
 scenario-assets6 = Staffelei, Blütensofa, Kamin, Teetisch, Baumfenster und Haustür,
-scenario-assets7 = Werkstatt).
+scenario-assets7 = Werkstatt, sternwarte = Globus und Außenregal).
 
 Jede Lieferung hat unten ihre eigene Zuordnung "Datei → Gegenstand" (die Dateinamen wiederholen sich).
 
@@ -596,10 +596,27 @@ def delivery_7():
     save(limit(crop(clean(load('Wald_neu-4.png')))), 'werkzeugkasten')
 
 
+def delivery_sternwarte():
+    # Außenregal (hängt mit dem Ring am Balkonhaken)
+    save(limit(crop(clean(load('Sternenwarte Regal.png')))), 'aussenregal')
+    # Globus; zum Drehen eine zweite Stufe, in der nur die Kugel gespiegelt ist (Kontinente wandern auf die andere Seite)
+    im = clean(load('Strernenwarte Globus.png'))
+    cx, cy, r = 510, 425, 186
+    box = (cx - r, cy - r, cx + r, cy + r)
+    mask = Image.new('L', (2 * r, 2 * r), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, 2 * r - 1, 2 * r - 1), fill=255)
+    turned = im.copy()
+    turned.paste(im.crop(box).transpose(Image.FLIP_LEFT_RIGHT), box[:2], mask)
+    a = im.split()[3].point(lambda v: 255 if v > 8 else 0).getbbox()  # gleicher Zuschnitt für beide Stufen
+    cut = (max(0, a[0] - 4), max(0, a[1] - 4), min(im.width, a[2] + 4), min(im.height, a[3] + 4))
+    save(limit(im.crop(cut)), 'globus')
+    save(limit(turned.crop(cut)), 'globus_r1')
+
+
 # ================================================================ Ablauf
 DELIVERIES = {'scenario-assets1': delivery_1, 'scenario-assets2': delivery_2, 'scenario-assets3': delivery_3, 'scenario-assets4': delivery_4,
               'scenario-assets5': delivery_5, 'scenario-assets6': delivery_6,
-              'scenario-assets7': delivery_7}
+              'scenario-assets7': delivery_7, 'sternwarte': delivery_sternwarte}
 frames = None
 for SRC in sys.argv[1:]:
     base = os.path.basename(os.path.normpath(SRC))

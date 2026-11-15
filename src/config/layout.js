@@ -90,9 +90,11 @@ const RAW_SLOTS = [
   { id: 9, x: 1564, y: 3780, cols: 14, rows: 7, shape: 'arch' },
   // Etage 6
   { id: 10, x: 1200, y: 4229, cols: 18, rows: 6, shape: 'rect' },
-  // Balkone außen am Stamm (nur für den Garten): x ergibt sich aus der Stammkante, side = links/rechts
+  // Balkone außen am Stamm (Garten, Sternwarte): x ergibt sich aus der Stammkante, side = links/rechts
   { id: 11, y: 2060, cols: 8, rows: 4, shape: 'rect', balcony: true, side: -1 },
   { id: 12, y: 3560, cols: 8, rows: 4, shape: 'rect', balcony: true, side: 1 },
+  { id: 13, y: 2620, cols: 8, rows: 4, shape: 'rect', balcony: true, side: 1 },
+  { id: 14, y: 3260, cols: 8, rows: 4, shape: 'rect', balcony: true, side: -1 },
 ];
 
 // Balkon: halbe Breite in der Welt (Raster + Rand, etwa wie roomGeometry), etwas in den Stamm geschoben
