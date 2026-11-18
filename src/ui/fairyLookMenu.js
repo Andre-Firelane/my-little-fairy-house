@@ -18,9 +18,14 @@ const PREVIEW_Y = 520;
 const PREVIEW_SCALE = 4.4;
 const TAB_Y = 880;
 const GRID_Y = 1040;
-const CELL = 178; // Raster der Auswahl (5 Spalten, bis 15 Teile)
-const COLS = 5;
-const CARD = 160;
+// Raster der Auswahl: so wenige Spalten wie möglich, höchstens 4 Reihen (bis 7 Spalten = 28 Teile)
+const GRID_W = 920;
+const GRID_ROWS = 4;
+function gridOf(n) {
+  const cols = Math.max(5, Math.min(7, Math.ceil(n / GRID_ROWS)));
+  const cell = Math.min(178, Math.floor(GRID_W / cols));
+  return { cols, cell, card: cell - 18 };
+}
 
 // Reiter: Bildzeichen + Auswahl (Teile einer Ebene oder Farben)
 const TABS = [
@@ -138,20 +143,21 @@ export default class FairyLookMenu {
     this.grid.removeAll(true);
     const tab = TABS[this.tab];
     this.options = optionsOf(tab);
+    const { cols, cell, card } = gridOf(this.options.length);
     this.options.forEach((opt, i) => {
-      const x = UI_W / 2 + ((i % COLS) - (COLS - 1) / 2) * CELL;
-      const y = GRID_Y + Math.floor(i / COLS) * CELL;
+      const x = UI_W / 2 + ((i % cols) - (cols - 1) / 2) * cell;
+      const y = GRID_Y - (178 - cell) / 2 + Math.floor(i / cols) * cell;
       const c = s.add.container(x, y);
       // nur das Teil selbst (zugeschnitten), Flügel als Paar, bei der Fee der Kopf
-      c.add(cardImage(s, CARD, CARD, 28, 0xe2b6ff));
-      c.add(partThumb(s, tab.slot, opt.changes[tab.slot], CARD - 30));
-      const ring = bakedImage(s, `look-ring-${CARD}`, CARD + 20, CARD + 20, (g) => {
+      c.add(cardImage(s, card, card, 28, 0xe2b6ff));
+      c.add(partThumb(s, tab.slot, opt.changes[tab.slot], card - 30));
+      const ring = bakedImage(s, `look-ring-${card}`, card + 20, card + 20, (g) => {
         g.lineStyle(9, 0xff7ab8, 1);
-        g.strokeRoundedRect(-CARD / 2 - 5, -CARD / 2 - 5, CARD + 10, CARD + 10, 36);
+        g.strokeRoundedRect(-card / 2 - 5, -card / 2 - 5, card + 10, card + 10, 36);
       }).setVisible(opt.current(this.look));
       c.add(ring);
       c.ring = ring;
-      c.setSize(CARD, CARD).setInteractive({ useHandCursor: true });
+      c.setSize(card, card).setInteractive({ useHandCursor: true });
       c.on('pointerup', () => this.pick(opt, c));
       this.grid.add(c);
     });

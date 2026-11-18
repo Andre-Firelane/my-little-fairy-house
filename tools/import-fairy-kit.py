@@ -9,6 +9,10 @@ Quellen: art-source/baukasten/
 - Feen Zauberstäbe.webp – 12 Zauberstäbe (werden schräg in die Hand gesetzt)
 - Feen Flügel.webp      – 13 Flügel (rechter Flügel wird ausgeschnitten, der linke im Spiel gespiegelt)
 
+Zweite Lieferung: dieselben Blätter mit "… neu.webp" (9 Grundfiguren, 12 Frisuren, 9 Kleider ["… neu passend"], 12 Zauberstäbe,
+13 Flügel) – Teile werden hinten angehängt, Einstellungen in NEW und NEW_* unten.
+Alle Grundfiguren werden schlanker gemacht (SLIM_*: keine T-Shirt-Schultern).
+
 Alle Teile außer den Flügeln liegen in einem gemeinsamen Rahmen (FRAME, Ursprung = Schultermitte der Fee),
 also im Spiel ohne weitere Angaben passend übereinander. Wo ein Teil im Rahmen sitzt (Maßstab, Versatz),
 steht unten in FIT – einmal ermittelt durch Formvergleich mit der früheren, von Hand ausgerichteten Fee.
@@ -66,6 +70,56 @@ WINGS = [
 ]
 WING_SCALE = 1.1  # Flügel-Blatt → Rahmen-Pixel (etwas größer als die Figur im Blatt: feenhafter)
 
+# Zweite Lieferung (Blätter "… neu.webp"): Teile werden hinten angehängt (Nummern laufen weiter).
+# Teile werden nach Rasterfeld (Spalten, Zeilen) des Blatts gruppiert – Stücke eines Teils (Oberteil + Rock,
+# Glut, Rauch, Pixel) gehören zusammen. FIT wie oben: (Maßstab, x, y der linken oberen Ecke des Teils).
+NEW = {
+    'body': {'file': 'Feen Base neu.webp', 'grid': (3, 3)},  # Rahmen: wie die erste Lieferung (Höhe, Kopfmitte)
+    # Frisuren: Gesichtsloch (Mitte, Oberkante) auf dem Blatt abgelesen und auf das Gesicht der Grundfigur gelegt
+    'hair': {'file': 'Feen Frisuren neu.webp', 'grid': (4, 3), 'fit': [
+        (0.870, 28.0, -70.6), (0.900, 39.7, -49.2), (0.900, 37.6, 30.5), (0.900, 38.1, 23.3),
+        (0.900, 0.3, -16.8), (0.900, 35.8, 14.7), (0.900, 49.3, 21.7), (0.900, 34.4, -26.5),
+        (0.900, 4.0, -28.3), (0.900, 37.3, 17.8), (0.883, 29.4, 1.3), (0.900, 64.5, 13.1)]},
+    # Kleider: passend zur Figur gemalt (wie die erste Lieferung) – mittig, Oberkante an der Schulter
+    'dress': {'file': 'Feen Kleider neu passend.webp', 'grid': (3, 3), 'fit': [
+        (0.8, 47.2, 137.0), (0.8, 77.2, 137.0), (0.8, 32.8, 130.0),
+        (0.8, 35.2, 135.0), (0.8, 40.4, 137.0), (0.8, 60.0, 137.0),
+        (0.8, 66.0, 137.0), (0.8, 44.4, 41.8), (0.8, 36.0, 137.0)]},
+    'wand': {'file': 'Feen Zauberstäbe neu.webp', 'grid': (4, 3)},
+    'wings': {'file': 'Feen Flügel neu.webp', 'boxes': [
+        ((2, 30, 263, 220), 'pair'),  # Sternbild
+        ((263, 30, 500, 228), 'pair'),  # Pink
+        ((505, 30, 637, 238), 'left'),  # Feuer (einzeln, linke Seite)
+        ((637, 30, 760, 238), 'right'),  # Eis (einzeln)
+        ((8, 270, 288, 492), 'pair'),  # Regenbogen
+        ((288, 276, 508, 488), 'pair'),  # Forscher-Kristall
+        ((512, 276, 752, 488), 'pair'),  # Flicken mit Zahnrad
+        ((15, 515, 285, 738), 'pair'),  # Pixel
+        ((285, 512, 516, 735), 'pair'),  # Zahnräder
+        ((510, 520, 752, 735), 'pair'),  # Pilze
+        ((10, 765, 293, 1005), 'pair'),  # Galaxie
+        ((292, 745, 476, 1005), 'right', 0.75),  # Schmetterling (eine Seite; groß gemalt: kleiner)
+        ((468, 765, 755, 1005), 'pair'),  # Koralle
+    ]},
+}
+HAIR_TOP = 80  # neue Frisuren: Rahmen nach oben verlängert (Flammen, Eiszacken, Dutts); Maße in fairyParts.json → frames
+NEW_HAIR_NO_FACECUT = {10}  # Brille sitzt vor dem Gesicht (Nummer auf dem neuen Blatt, ab 1)
+NEW_HAIR_ROUND = {3, 4, 7, 12}  # lange Haare dicht am Gesicht: Ausschnitt zur Stirn hin gerundet (keine Ecke)
+# lange Frisuren, die unter dem Kinn zusammenlaufen: dort teilen (Flammen, Eis, Galaxie, Regenbogen, Wald, Brille)
+NEW_HAIR_NO_BEARD = {1, 2, 3, 4, 6, 10}
+BEARD_HALF = (0.9, 33)  # Keil unter dem Kinn: Zunahme der halben Breite je Zeile, höchstens (Schulterbreite)
+# Brille der Forscher-Frisur sitzt im Bild zu hoch für die Augen der Grundfiguren: nur die Brille verschieben.
+# (Rechteck auf dem Blatt, Spalten des Gesichts darin [dort wird die alte Brille entfernt], Verschiebung dx, dy)
+NEW_HAIR_GLASSES = {10: ((272, 797, 362, 832), (278, 354), (-4, 8))}
+NEW_DRESS_CUT_TOP = {8: 0.40}  # Waldkleid: Kapuze weg (oberer Anteil des Teils) – sie läge über dem Gesicht
+DRESS_NECK = 143  # Kragen: nichts vom Kleid über dem Kopf der Grundfigur (oberhalb dieser Zeile)
+
+# Grundfiguren schlanker (alle): T-Shirt-Schultern schräg abschneiden (Hals → Armansatz) und Taille/Hüfte
+# schmaler; Arme bleiben, wo sie sind (Hand, Zauberstab, Ärmel). Rahmen-Pixel.
+SLIM_SHOULDER = (((103, 144), (85, 170)), ((135, 144), (153, 170)))  # Linie links / rechts, außen davon weg
+SLIM_SIDES = ((86, 94, 188), (144, 152, 192))  # Spalten von–bis, die ab Zeile … weg sind (bis Hüfte)
+SLIM_HIP = 255
+
 # Gesicht (Rahmen-Zeilen von den Brauen bis zum Kinn, Abstand zum Kopfrand): Haare dort hinter dem Gesicht
 FACE_ROWS = (98, 141)
 FACE_INSET = 9
@@ -122,6 +176,30 @@ def items(path):
     return rgba, res
 
 
+def grid_items(path, grid, glow=7, min_n=40):
+    """Teile eines Blatts im Raster (Spalten, Zeilen): alle Stücke eines Feldes werden ein Teil, Lesereihenfolge"""
+    rgba, fg = key(path, glow)
+    cols, rows = grid
+    H, W = fg.shape
+    cells = {}
+    for n, p in labels(fg):
+        if n < min_n:
+            continue
+        ys, xs = np.nonzero(p)
+        c = (int(ys.mean() * rows // H), int(xs.mean() * cols // W))
+        cells.setdefault(c, []).append((n, p))
+    res = []
+    for c in sorted(cells):
+        if max(n for n, _ in cells[c]) < 1500:
+            continue  # nur Glitzer
+        mask = np.zeros_like(fg)
+        for _, p in cells[c]:
+            mask |= p
+        ys, xs = np.nonzero(mask)
+        res.append({'box': (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1), 'mask': mask, 'c': (xs.mean(), ys.mean())})
+    return rgba, res
+
+
 def crop_item(rgba, item, pad=6):
     """Teil ausschneiden (nur seine Pixel + kleine Glitzer in der Nähe)"""
     x0, y0, x1, y1 = item['box']
@@ -137,15 +215,17 @@ def to_img(arr):
     return Image.fromarray(np.clip(arr, 0, 255).round().astype(np.uint8), 'RGBA')
 
 
-def place(arr, origin, box, fit):
-    """Ausschnitt in den Rahmen setzen: fit = (Maßstab, x, y) der Teil-Ecke box[0:2]"""
-    s, fx, fy = fit
+def place(arr, origin, box, fit, top=0):
+    """Ausschnitt in den Rahmen setzen: fit = (Maßstab, x, y) der Teil-Ecke box[0:2];
+    top = zusätzlicher Platz über dem Rahmen (hohe Frisuren); ein 4. Wert in fit = eigener Höhenmaßstab"""
+    s, fx, fy = fit[:3]
+    sy = fit[3] if len(fit) > 3 else s
     img = to_img(arr)
     w, h = img.size
-    big = img.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
+    big = img.resize((max(1, round(w * s)), max(1, round(h * sy))), Image.LANCZOS)
     ox = round(fx - (box[0] - origin[0]) * s)
-    oy = round(fy - (box[1] - origin[1]) * s)
-    frame = Image.new('RGBA', (OW, OH), (0, 0, 0, 0))
+    oy = round(fy + top - (box[1] - origin[1]) * sy)
+    frame = Image.new('RGBA', (OW, OH + top), (0, 0, 0, 0))
     frame.paste(big, (ox, oy), big)
     return frame
 
@@ -176,6 +256,63 @@ def undress(arr):
     out[rim, :3] = (70, 40, 38)
     out[rim, 3] = 255
     return out
+
+
+def undress_long(arr):
+    """Grundfigur der zweiten Lieferung: manche tragen lange Hosen – Hautfarbe von der Stirn,
+    übermalt wird vom Hals bis dorthin, wo die Beine wieder hautfarben sind (über den Füßen)"""
+    rgb, a = arr[..., :3], arr[..., 3] / 255
+    hue, sat, val, mn, lum = hsv(rgb)
+    solid = a > 0.6
+    H, W = a.shape
+    ys, xs = np.nonzero(solid)
+    top, bot = ys.min(), ys.max()
+    h = bot - top
+    cx = int(np.median(xs[ys < top + h * 0.25]))
+    outline = (lum < 75) & (sat < 0.65)
+    yy = np.arange(H)[:, None]
+    xx = np.arange(W)[None, :]
+    forehead = solid & ~outline & (yy > top + h * 0.03) & (yy < top + h * 0.10) & (abs(xx - cx) < h * 0.07)
+    skin_rgb = np.median(rgb[forehead], axis=0)
+    # Hosensaum: erste Zeile ab dem Shorts-Saum, in der die Beine überwiegend hautfarben sind
+    near = np.sqrt(((rgb - skin_rgb) ** 2).sum(2)) < 60
+    end = top + h * 0.845
+    for y in range(int(top + h * 0.85), int(top + h * 0.97)):
+        row = solid[y] & ~outline[y]
+        if row.sum() > 6 and (near[y] & row).sum() > 0.6 * row.sum():
+            end = y
+            break
+    zone = (yy > top + h * 0.40) & (yy < end)
+    paint = solid & zone
+    out = arr.copy()
+    out[paint, :3] = skin_rgb
+    rim = paint & dilate(~solid, 2)
+    out[rim, :3] = (70, 40, 38)
+    out[rim, 3] = 255
+    return out
+
+
+def slim(frame):
+    """Grundfigur im Rahmen schlanker machen (SLIM_*): Pixel weg, an der Schnittkante neuer Umriss"""
+    a = np.asarray(frame).copy()
+    yy, xx = np.mgrid[0:OH, 0:OW]
+    cut = np.zeros((OH, OW), bool)
+    for side, ((x0, y0), (x1, y1)) in zip((-1, 1), SLIM_SHOULDER):
+        line_x = x0 + (yy - y0) * (x1 - x0) / (y1 - y0)
+        cut |= ((xx - line_x) * side > 0) & (yy >= y0) & (yy <= y1)
+    for x0, x1, y0 in SLIM_SIDES:
+        cut |= (xx >= x0) & (xx < x1) & (yy >= y0) & (yy <= SLIM_HIP)
+    solid = a[..., 3] > 0
+    cut &= solid
+    a[cut, 3] = 0
+    rim = (a[..., 3] > 100) & dilate(cut, 2)
+    a[rim, :3] = (70, 40, 38)
+    # abgetrennte Reste (Stückchen außen an der Hüfte) weg: nur die Figur selbst bleibt
+    parts = labels(a[..., 3] > 0)
+    for n, p in parts[1:]:
+        if n < 400:
+            a[p, 3] = 0
+    return Image.fromarray(a)
 
 
 def hand_center(body_frame):
@@ -267,18 +404,32 @@ def main():
         if f.endswith('.png'):
             os.remove(os.path.join(OUT, f))
     meta = {'frame': {'w': round(OW * UNIT, 2), 'h': round(OH * UNIT, 2), 'ox': round(ANCHOR[0] / OW, 4), 'oy': round(ANCHOR[1] / OH, 4)},
-            'head': HEAD, 'body': [], 'hair': [], 'dress': [], 'wand': [], 'wings': []}
+            'head': HEAD, 'body': [], 'hair': [], 'dress': [], 'wand': [], 'wings': [], 'frames': {}}
 
     # Grundfiguren
     rgba, res = items(os.path.join(SRC, 'Feen Base.webp'))
     hand = None
     for i, (it, fit) in enumerate(zip(res, FIT['body']), start=1):
         arr, origin = crop_item(rgba, it)
-        frame = place(undress(arr), origin, it['box'], fit)
+        frame = slim(place(undress(arr), origin, it['box'], fit))
         save(frame, f'body-{i}')
         if hand is None:
             hand = hand_center(frame)
         # Hand über dem Zauberstab (Finger liegen vorn)
+        fa = np.asarray(frame).copy()
+        yy, xx = np.mgrid[0:OH, 0:OW]
+        fa[..., 3] = fa[..., 3] * (((xx - hand[0]) ** 2 + (yy - hand[1]) ** 2) <= 8.5 ** 2)
+        save(Image.fromarray(fa), f'hand-{i}')
+        meta['body'].append(i)
+    # zweite Lieferung: gleiche Höhe und Mitte wie die ersten Grundfiguren
+    rgba, res = grid_items(os.path.join(SRC, NEW['body']['file']), NEW['body']['grid'])
+    for it in res:
+        i = len(meta['body']) + 1
+        x0, y0, x1, y1 = it['box']
+        s = 253.0 / (y1 - y0)
+        arr, origin = crop_item(rgba, it)
+        frame = slim(place(undress_long(arr), origin, it['box'], (s, 117.2 - (x1 - x0) * s / 2, 41)))
+        save(frame, f'body-{i}')
         fa = np.asarray(frame).copy()
         yy, xx = np.mgrid[0:OH, 0:OW]
         fa[..., 3] = fa[..., 3] * (((xx - hand[0]) ** 2 + (yy - hand[1]) ** 2) <= 8.5 ** 2)
@@ -292,6 +443,21 @@ def main():
         cols = np.nonzero(ba[y])[0]
         if len(cols):
             facecut[y, cols.min() + FACE_INSET: cols.max() - FACE_INSET + 1] = True
+    # gerundet: über den Brauen ein Bogen bis zur Stirnmitte (nur neue Frisuren)
+    facecut_round = facecut.copy()
+    row = np.nonzero(facecut[FACE_ROWS[0]])[0]
+    mid, half = (row.min() + row.max()) / 2, (row.max() - row.min()) / 2
+    for y in range(FACE_ROWS[0] - 26, FACE_ROWS[0]):
+        w = half * math.sqrt(max(0.0, 1 - ((FACE_ROWS[0] - y) / 26) ** 2))
+        facecut_round[y, round(mid - w): round(mid + w) + 1] = True
+    # unter dem Kinn: Keil, der vom Kinn bis Schulterbreite aufgeht (die Haare fallen links und rechts
+    # hinter die Schultern statt über die Brust – sonst wirkt es wie ein Bart)
+    beardcut = np.zeros((OH, OW), bool)
+    xs_ = np.nonzero(facecut[FACE_ROWS[1] - 1])[0]
+    bmid = (xs_.min() + xs_.max()) / 2
+    for y in range(FACE_ROWS[1] - 6, OH):
+        hw = min(BEARD_HALF[1], (xs_.max() - xs_.min()) / 2 + 4 + (y - FACE_ROWS[1] + 6) * BEARD_HALF[0])
+        beardcut[y, round(bmid - hw): round(bmid + hw) + 1] = True
 
     for kind, fname in (('hair', 'Feen Frisuren.webp'), ('dress', 'Feen Kleider.webp')):
         rgba, res = items(os.path.join(SRC, fname))
@@ -306,9 +472,54 @@ def main():
                 img = Image.fromarray(a)
             save(img, f'{kind}-{i}')
             meta[kind].append(i)
+        # zweite Lieferung
+        rgba, res = grid_items(os.path.join(SRC, NEW[kind]['file']), NEW[kind]['grid'])
+        for k, (it, fit) in enumerate(zip(res, NEW[kind]['fit']), start=1):
+            i = len(meta[kind]) + 1
+            arr, origin = crop_item(rgba, it)
+            if kind == 'dress' and k in NEW_DRESS_CUT_TOP:
+                cut = round((it['box'][3] - it['box'][1]) * NEW_DRESS_CUT_TOP[k]) + it['box'][1] - origin[1]
+                arr[:cut, :, 3] = 0
+            if kind == 'hair' and k in NEW_HAIR_GLASSES:
+                (gx0, gy0, gx1, gy1), (fx0, fx1), (dx, dy) = NEW_HAIR_GLASSES[k]
+                gx0, gx1, fx0, fx1 = (v - origin[0] for v in (gx0, gx1, fx0, fx1))
+                gy0, gy1 = gy0 - origin[1], gy1 - origin[1]
+                patch = to_img(arr[gy0:gy1, gx0:gx1])
+                base = arr.copy()
+                base[gy0:gy1, fx0:fx1, 3] = 0
+                img_ = to_img(base)
+                img_.alpha_composite(patch, (gx0 + dx, gy0 + dy))
+                arr = np.asarray(img_).astype(np.float32)
+            top = HAIR_TOP if kind == 'hair' else 0
+            img = place(arr, origin, it['box'], fit, top)
+            if kind == 'dress':  # Kragen, der ins Gesicht ragt: abschneiden
+                a = np.asarray(img).copy()
+                a[:DRESS_NECK][ba[:DRESS_NECK], 3] = 0
+                img = Image.fromarray(a)
+            if kind == 'hair':
+                a = np.asarray(img).copy()
+                if k not in NEW_HAIR_NO_FACECUT:
+                    a[top:][facecut_round if k in NEW_HAIR_ROUND else facecut, 3] = 0
+                if k in NEW_HAIR_NO_BEARD:
+                    f = a[top:]
+                    f[beardcut, 3] = 0
+                    # Schnittkante wie ein Haar-Umriss: Rand dunkler
+                    edge = (f[..., 3] > 60) & dilate(beardcut, 2)
+                    f[edge, :3] = (f[edge, :3] * 0.45).astype(np.uint8)
+                if k in NEW_HAIR_NO_FACECUT:  # Brillengläser durchscheinend (helle Pixel im Gesicht)
+                    f = a[top:]
+                    lum = f[..., :3].astype(float) @ [0.299, 0.587, 0.114]
+                    glass = facecut & (lum > 165)
+                    f[glass, 3] = (f[glass, 3] * 0.3).astype(np.uint8)
+                img = Image.fromarray(a)
+            save(img, f'{kind}-{i}')
+            meta[kind].append(i)
+            if top:
+                meta['frames'][f'{kind}-{i}'] = {'h': round((OH + top) * UNIT, 2), 'oy': round((ANCHOR[1] + top) / (OH + top), 4)}
 
     rgba, res = items(os.path.join(SRC, 'Feen Zauberstäbe.webp'))
-    for i, it in enumerate(res, start=1):
+    rgba2, res2 = grid_items(os.path.join(SRC, NEW['wand']['file']), NEW['wand']['grid'])
+    for i, (rgba, it) in enumerate([(rgba, r) for r in res] + [(rgba2, r) for r in res2], start=1):
         arr, origin = crop_item(rgba, it, pad=14)
         # Glitzer um den Stab gehören dazu
         x0, y0, x1, y1 = it['box']
@@ -323,6 +534,13 @@ def main():
         img, oy = wing_right(rgba, box, kind, exclude_dark=(i == 9))
         save(img, f'wing-{i}')
         meta['wings'].append({'id': i, 'h': round(img.height * WING_SCALE * UNIT, 2), 'ox': 0.03, 'oy': round(oy, 3)})
+    rgba, _ = key(os.path.join(SRC, NEW['wings']['file']), glow=18)
+    for box, kind, *scale in NEW['wings']['boxes']:
+        i = len(meta['wings']) + 1
+        img, oy = wing_right(rgba, box, kind)
+        save(img, f'wing-{i}')
+        h = img.height * WING_SCALE * (scale[0] if scale else 1) * UNIT
+        meta['wings'].append({'id': i, 'h': round(h, 2), 'ox': 0.03, 'oy': round(oy, 3)})
 
     meta['hand'] = [float(hand[0]), float(hand[1])]
     # Spitze des Zauberstabs relativ zum Ursprung (Spiel-Einheiten): dort hängt die Glitzerspur

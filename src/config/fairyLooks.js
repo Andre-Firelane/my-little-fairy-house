@@ -1,7 +1,7 @@
 // Feen-Baukasten: Aussehen der Feen aus gemalten Teilen – im Spiel wählbar: Fee antippen (ui/fairyLookMenu.js).
 //
 // Die Teile kommen aus tools/import-fairy-kit.py (Quellen: art-source/baukasten/*.webp):
-// 9 Grundfiguren (Gesicht und Hautfarbe), Frisuren, Kleider, Zauberstäbe und Flügel.
+// 18 Grundfiguren (Gesicht und Hautfarbe), Frisuren, Kleider, Zauberstäbe und Flügel (zwei Lieferungen).
 // Alle Teile außer den Flügeln haben denselben Rahmen (fairyParts.json → frame) und liegen ohne weitere
 // Angaben passend übereinander. Flügel: Bild des RECHTEN Flügels mit eigenen Maßen (h, ox/oy = Ansatz
 // an der Schulter); der linke wird gespiegelt.
@@ -14,7 +14,8 @@ import { savedLook } from '../state/looks.js';
 // Ebenen von hinten nach vorn (Flügel liegen immer ganz hinten; die Hand der Grundfigur liegt über dem Zauberstab)
 export const LOOK_LAYERS = ['hairBack', 'body', 'face', 'dress', 'wand', 'hair', 'accessory'];
 
-const numbered = (kind) => Object.fromEntries(PARTS[kind].map((n) => [String(n), { file: `${kind}-${n}` }]));
+// eigene Rahmen (frames: z. B. hohe Frisuren mit Platz über dem Kopf) ersetzen h/oy des gemeinsamen Rahmens
+const numbered = (kind) => Object.fromEntries(PARTS[kind].map((n) => [String(n), { file: `${kind}-${n}`, ...PARTS.frames?.[`${kind}-${n}`] }]));
 
 export const FAIRY_PARTS = {
   body: Object.fromEntries(PARTS.body.map((n) => [String(n), { file: `body-${n}`, hand: `hand-${n}` }])),
