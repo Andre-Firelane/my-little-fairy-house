@@ -165,6 +165,61 @@ const ICONS = {
     g.fillEllipse(-6, 12, 8, 10);
   },
 
+  // Frühlingsfest: Kirschblüte mit Knospe und Blütenblättern im Wind
+  blossom(g) {
+    g.lineStyle(7, 0x8a5a3b, 1);
+    g.lineBetween(-48, 44, 30, -34);
+    g.fillStyle(0x6fbf5a, 1);
+    g.fillEllipse(30, -42, 22, 12);
+    // Knospe
+    g.fillStyle(0xff9ec7, 1);
+    g.fillEllipse(34, -30, 16, 20);
+    // Blüte
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i / 5) * Math.PI * 2;
+      g.fillStyle(0xffc2dc, 1);
+      g.fillCircle(-8 + Math.cos(a) * 20, 8 + Math.sin(a) * 20, 17);
+      g.fillStyle(0xff9ec7, 1);
+      g.fillCircle(-8 + Math.cos(a) * 26, 8 + Math.sin(a) * 26, 5);
+    }
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(-8, 8, 11);
+    g.fillStyle(0xffd166, 1);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.fillCircle(-8 + Math.cos(a) * 6, 8 + Math.sin(a) * 6, 2.6);
+    }
+    // Blütenblätter im Wind
+    g.fillStyle(0xffc2dc, 1);
+    g.fillEllipse(38, 20, 14, 8);
+    g.fillEllipse(24, 44, 10, 6);
+  },
+
+  // Erster Schnee: Schneeflocke
+  snowflake(g) {
+    const arm = (a, w, c) => {
+      const x = Math.cos(a);
+      const y = Math.sin(a);
+      g.lineStyle(w, c, 1);
+      g.lineBetween(0, 0, x * 48, y * 48);
+      for (const t of [24, 36]) {
+        const bx = x * t;
+        const by = y * t;
+        const k = t === 24 ? 14 : 10;
+        for (const s of [-1, 1]) {
+          const b = a + s * 0.8;
+          g.lineBetween(bx, by, bx + Math.cos(b) * k, by + Math.sin(b) * k);
+        }
+      }
+    };
+    for (let i = 0; i < 6; i++) arm((i / 6) * Math.PI * 2 - Math.PI / 2, 11, 0x8fb8e8);
+    for (let i = 0; i < 6; i++) arm((i / 6) * Math.PI * 2 - Math.PI / 2, 6, 0xffffff);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(0, 0, 10);
+    g.fillStyle(0xb9d8ff, 1);
+    g.fillCircle(0, 0, 5);
+  },
+
   // Lichterfest: Lichterkette oben, darunter eine leuchtende Laterne am Stab
   lantern(g) {
     // Lichterkette

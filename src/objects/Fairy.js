@@ -280,7 +280,7 @@ export default class Fairy extends Phaser.GameObjects.Container {
         bake(scene, f.bodyKey(outfit), 50, 76, (g) => f.drawBody(g, outfit), 18, 42, FAIRY_RES);
       }
     }
-    for (const outfit of ['pj-gown', 'pj-cap', 'apron']) Fairy.bakeOutfit(scene, outfit);
+    for (const outfit of ['pj-gown', 'pj-cap', 'apron', 'wreath']) Fairy.bakeOutfit(scene, outfit);
   }
 
   // ---------- gemalte Fee (Ebenen) ----------
@@ -304,9 +304,18 @@ export default class Fairy extends Phaser.GameObjects.Container {
     this.wingR = wingR;
     this.lantern = lantern;
     this.body = this.figure; // für Code, der den Körper anspricht
+    if (this.wreath) this.figure.add(outfitImage(this.scene, 'wreath'));
   }
 
-  // Zubehör, solange es dafür keine gemalten Teile gibt: Zipfelmütze (Schlafanzug) und Arbeitsschürze mit Stirnband
+  // Blumenkranz auf dem Kopf (Frühlingsfest); nur gemalte Feen
+  setWreath(on) {
+    if (!!on === !!this.wreath) return;
+    this.wreath = !!on;
+    if (this.painted) this.buildFigure();
+  }
+
+  // Zubehör, solange es dafür keine gemalten Teile gibt: Zipfelmütze (Schlafanzug), Arbeitsschürze mit Stirnband,
+  // Blumenkranz (Frühlingsfest)
   static outfitBox() {
     return { w: 64, h: 112, ox: 32, oy: 62 };
   }
@@ -327,6 +336,30 @@ export default class Fairy extends Phaser.GameObjects.Container {
         g.fillRoundedRect(hx - hw * 0.46, y - 3, hw * 0.92, 6, 3);
         g.fillStyle(0xfff3a8, 1);
         g.fillCircle(hx + hw * 0.5, y - 19, 4);
+      } else if (outfit === 'wreath') {
+        // Blumenkranz: Blätter und kleine Blüten im Bogen über die Stirn
+        const y = top + 11;
+        const n = 7;
+        const pos = (i) => {
+          const u = i / (n - 1);
+          return { x: hx + (u - 0.5) * hw * 1.02, y: y - Math.sin(u * Math.PI) * 5 };
+        };
+        g.fillStyle(0x5fae4a, 1);
+        for (let i = 0; i < n - 1; i++) {
+          const p = pos(i + 0.5);
+          g.fillEllipse(p.x, p.y + 1.5, 7, 3.5);
+        }
+        const cols = [0xff9ec7, 0xffffff, 0xffd166, 0xc9a6ff, 0xff9ec7, 0xffffff, 0xffb8d6];
+        for (let i = 0; i < n; i++) {
+          const p = pos(i);
+          g.fillStyle(cols[i], 1);
+          for (let k = 0; k < 5; k++) {
+            const a = (k / 5) * Math.PI * 2;
+            g.fillCircle(p.x + Math.cos(a) * 2.2, p.y + Math.sin(a) * 2.2, 1.9);
+          }
+          g.fillStyle(0xffd166, 1);
+          g.fillCircle(p.x, p.y, 1.3);
+        }
       } else if (outfit === 'apron') {
         // Arbeitsschürze (Jeansblau) mit Latz, Tasche und Bleistift
         const pts = [{ x: -5, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 9 }, { x: 12, y: 27 }, { x: -12, y: 27 }, { x: -6, y: 9 }];

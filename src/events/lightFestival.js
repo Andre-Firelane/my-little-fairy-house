@@ -1,6 +1,7 @@
 import { DEPTH, WORLD_W } from '../config/layout.js';
 import { OX, OY, TRUNK_X, sway, halfWidth } from '../config/treeShape.js';
-import { clamp, rand } from '../systems/motion.js';
+import { rand } from '../systems/motion.js';
+import { track, smoothPath } from './paths.js';
 
 // Event „Lichterfest“: es wird Abend (warmes Dämmerlicht, die Feen bleiben wach, siehe systems/dayNight.js).
 //  1. Schmücken: alle Feen fliegen aus ihren Zimmern und hängen Lichterketten in den Baum – hinter jeder Fee
@@ -58,27 +59,7 @@ const PARADE = [
 ];
 
 const W = ([x, y]) => ({ x: x + OX, y: y + OY });
-
-// Polylinie mit Weglänge: at(s) = Punkt nach s Weltpixeln
-function track(points, closed = false) {
-  const pts = closed ? [...points, points[0]] : points;
-  const d = [0];
-  for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
-  const length = d[d.length - 1];
-  const at = (s) => {
-    s = closed ? ((s % length) + length) % length : clamp(s, 0, length);
-    let lo = 0;
-    let hi = d.length - 1;
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >> 1;
-      if (d[mid] <= s) lo = mid;
-      else hi = mid;
-    }
-    const u = (s - d[lo]) / Math.max(1e-6, d[hi] - d[lo]);
-    return { x: pts[lo].x + (pts[hi].x - pts[lo].x) * u, y: pts[lo].y + (pts[hi].y - pts[lo].y) * u };
-  };
-  return { length, at };
-}
+const smoothLoop = (points) => smoothPath(points.map(W));
 
 // durchhängende Kette zwischen den Aufhängepunkten, fein abgetastet
 function swagPoints(g) {
@@ -90,24 +71,6 @@ function swagPoints(g) {
     for (let k = i ? 1 : 0; k <= 24; k++) {
       const u = k / 24;
       out.push({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u + g.sag * 4 * u * (1 - u) });
-    }
-  }
-  return out;
-}
-
-// glatter, geschlossener Weg durch die Punkte (Catmull-Rom)
-function smoothLoop(points) {
-  const p = points.map(W);
-  const n = p.length;
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const [p0, p1, p2, p3] = [p[(i - 1 + n) % n], p[i], p[(i + 1) % n], p[(i + 2) % n]];
-    for (let k = 0; k < 12; k++) {
-      const t = k / 12;
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-      out.push({ x: f(p0.x, p1.x, p2.x, p3.x), y: f(p0.y, p1.y, p2.y, p3.y) });
     }
   }
   return out;

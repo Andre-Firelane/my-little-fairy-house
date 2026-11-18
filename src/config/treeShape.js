@@ -3,6 +3,8 @@
 // Die Höhlen im Stamm wandern mit der Schwingung des Stamms mit (config/layout.js → SLOTS).
 // Alle Maße hier sind Baum-Koordinaten; in der Welt liegt der Baum um (OX, OY) verschoben – über und neben dem Stamm
 // ist so Platz für die große Krone (die Welt ist entsprechend größer, siehe layout.js).
+import { makeRng } from '../systems/motion.js';
+
 export const OX = 500;
 export const OY = 1400;
 
@@ -96,6 +98,36 @@ export const CROWN = [
   { x: 240, y: 2370, rx: 110, ry: 80 },
   { x: 2170, y: 3050, rx: 110, ry: 80 },
 ];
+
+// Lage der gemalten Kronenstücke (Baum-Koordinaten): n = Anzahl Bilder; back = hintere (dunklere) Reihe.
+// Auch für Events, die etwas auf die Krone legen (Blüten, Schnee).
+// Kronenstücke in den Blätterbüscheln (CROWN): hinten große dunkle, vorne kleinere helle Stücke
+export function crownLayout(n) {
+  const rng = makeRng(23);
+  const out = [];
+  const pick = () => Math.floor(rng() * n);
+  for (const c of CROWN) {
+    const area = c.rx * c.ry;
+    const k = Math.min(1, c.rx / 220); // kleine Büschel: kleinere Stücke
+    for (const [back, scale, density] of [[true, 1.55 * k, 1 / 52000 / k / k], [false, 1.2 * k, 1 / 40000 / k / k]]) {
+      const count = Math.max(2, Math.round(area * density));
+      for (let i = 0; i < count; i++) {
+        const a = rng() * Math.PI * 2;
+        const d = Math.sqrt(rng()) * (back ? 0.75 : 0.6);
+        out.push({
+          x: c.x + Math.cos(a) * c.rx * d,
+          y: c.y + Math.sin(a) * c.ry * d + (back ? -20 : 15),
+          i: pick(),
+          s: scale * (0.85 + rng() * 0.3),
+          flip: rng() < 0.5,
+          back,
+        });
+      }
+    }
+  }
+  // erst alle hinteren, dann die vorderen
+  return out.sort((a, b) => (a.back === b.back ? 0 : a.back ? -1 : 1));
+}
 
 // Wurzeln: wie Äste, aber vom Stammfuß schräg in die Wiese
 export const ROOTS = [

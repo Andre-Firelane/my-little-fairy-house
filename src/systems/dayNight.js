@@ -5,6 +5,7 @@
 // Abend (Lichterfest): startEvening() hält warmes Dämmerlicht (darkness EVENING_DARK, warm = 1), ohne dass es Nacht
 // wird – die Feen bleiben wach. endEvening() lässt die Dämmerung von dort aus weiterlaufen in die Nacht.
 // warm 0 … 1: wie stark Himmel und Schleier ins Abendrot getönt sind.
+// chill 0 … 1: Schneehimmel (Erster Schnee) – kühl, hellgrau-blau; setChill(true/false) blendet weich ein und aus.
 // Zum Testen: ?zeit=10 lässt die Zeit zehnmal so schnell laufen.
 
 export const DAY = 210;
@@ -25,10 +26,22 @@ export default class DayNight {
     this.darkness = 0;
     this.warm = 0;
     this.evening = 0; // 0 = kein Abend, sonst 0 … 1 eingeblendet
+    this.chill = 0;
+    this.chillTo = 0;
+    this.paused = false; // Tag-Events (Frühlingsfest, Erster Schnee): die Uhr steht, damit es nicht mittendrin Nacht wird
     this.update(0);
   }
 
+  // Schneehimmel ein/aus (weich über einige Sekunden)
+  setChill(on) {
+    this.chillTo = on ? 1 : 0;
+  }
+
   update(dt) {
+    if (this.chill !== this.chillTo) {
+      const step = dt / 5;
+      this.chill = this.chillTo > this.chill ? Math.min(this.chillTo, this.chill + step) : Math.max(this.chillTo, this.chill - step);
+    }
     if (this.evening) {
       // Abend: die Zeit steht, das Licht wird warm und dämmrig
       this.evening = Math.min(1, this.evening + dt / EVENING_FADE);
@@ -39,7 +52,7 @@ export default class DayNight {
       return;
     }
     this.warm = Math.max(0, this.warm - dt / 8); // Abendrot verblasst in der Dämmerung
-    let step = dt * speed;
+    let step = this.paused ? 0 : dt * speed;
     // in der tiefen Nacht erst die Verlängerung aufbrauchen
     if (this.hold > 0 && this.t >= DAY + DUSK && this.t < DAY + DUSK + NIGHT) {
       const use = Math.min(this.hold, step);

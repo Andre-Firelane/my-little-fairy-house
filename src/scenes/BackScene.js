@@ -89,14 +89,16 @@ export default class BackScene extends Phaser.Scene {
     const v = this.tree.camView;
     if (!v) return;
     // Nacht: Himmel und Wald dunkler
-    // Abend (Lichterfest): wärmer, Himmel ins Abendrot
+    // Abend (Lichterfest): wärmer, Himmel ins Abendrot; Schnee: kühler
     const dark = this.tree.clock?.darkness ?? 0;
     const warm = this.tree.clock?.warm ?? 0;
-    if (dark !== this.dark || warm !== this.warm) {
+    const chill = this.tree.clock?.chill ?? 0; // Schneehimmel (Erster Schnee)
+    if (dark !== this.dark || warm !== this.warm || chill !== this.chill) {
       this.dark = dark;
       this.warm = warm;
-      this.sky.setTint(lerpColor(lerpColor(0xffffff, 0x4c4c8c, dark), 0xffa98e, warm * 0.75));
-      const t = lerpColor(lerpColor(0xffffff, 0x5c5c96, dark), 0xb06a8a, warm * 0.6);
+      this.chill = chill;
+      this.sky.setTint(lerpColor(lerpColor(lerpColor(0xffffff, 0xc4d2e4, chill), 0x4c4c8c, dark), 0xffa98e, warm * 0.75));
+      const t = lerpColor(lerpColor(lerpColor(0xffffff, 0xd4e0ee, chill), 0x5c5c96, dark), 0xb06a8a, warm * 0.6);
       for (const L of this.layers) L.img.setTint(t);
     }
     // 0 = Baumkrone oben, 1 = Wurzeln unten

@@ -19,7 +19,8 @@ import { createRoom, house, snapshot } from '../state/house.js';
 import { CELL, furnitureById } from '../config/furniture.js';
 import { BALCONY, balconyFit, railSpots } from '../config/balcony.js';
 import {
-  TRUNK_X, TRUNK_TOP, GROUND_Y, sway, halfWidth, trunkOutline, BRANCHES, ROOTS, CROWN, WINDOWS, DOOR, bez, OX, OY,
+  TRUNK_X, TRUNK_TOP, GROUND_Y, sway, halfWidth, trunkOutline, BRANCHES, ROOTS, WINDOWS, DOOR, bez, OX, OY,
+  crownLayout,
 } from '../config/treeShape.js';
 import Residents from '../life/Residents.js';
 import Fairy from '../objects/Fairy.js';
@@ -1054,32 +1055,4 @@ function darken(img, color) {
   x.fillStyle = color;
   x.fillRect(0, 0, c.width, c.height);
   return c;
-}
-
-// Kronenstücke in den Blätterbüscheln (CROWN): hinten große dunkle, vorne kleinere helle Stücke
-function crownLayout(n) {
-  const rng = makeRng(23);
-  const out = [];
-  const pick = () => Math.floor(rng() * n);
-  for (const c of CROWN) {
-    const area = c.rx * c.ry;
-    const k = Math.min(1, c.rx / 220); // kleine Büschel: kleinere Stücke
-    for (const [back, scale, density] of [[true, 1.55 * k, 1 / 52000 / k / k], [false, 1.2 * k, 1 / 40000 / k / k]]) {
-      const count = Math.max(2, Math.round(area * density));
-      for (let i = 0; i < count; i++) {
-        const a = rng() * Math.PI * 2;
-        const d = Math.sqrt(rng()) * (back ? 0.75 : 0.6);
-        out.push({
-          x: c.x + Math.cos(a) * c.rx * d,
-          y: c.y + Math.sin(a) * c.ry * d + (back ? -20 : 15),
-          i: pick(),
-          s: scale * (0.85 + rng() * 0.3),
-          flip: rng() < 0.5,
-          back,
-        });
-      }
-    }
-  }
-  // erst alle hinteren, dann die vorderen
-  return out.sort((a, b) => (a.back === b.back ? 0 : a.back ? -1 : 1));
 }
