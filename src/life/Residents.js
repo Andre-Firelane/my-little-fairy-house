@@ -4,9 +4,11 @@ import { nextFairies } from '../state/house.js';
 import { FAIRY_SCALE, FAIRIES_PER_ROOM } from './RoomLife.js';
 import { rand, pick } from '../systems/motion.js';
 import { CELL } from '../config/furniture.js';
+import { roomPreference, STAY_CHANCE } from '../config/dressRooms.js';
 
 const TRAVEL_SPEED = 800; // beim Wechseln zwischen Zimmern fliegen die Feen zügig
 const STAY_MIN = 20; // so viele Sekunden bleibt eine Fee mindestens in einem Zimmer
+const typeOf = (room) => room.life.view?.typeDef?.id;
 
 // Die Bewohner des Feenhauses. Feen gehören dem ganzen Haus, nicht einem Zimmer:
 //  - je eingerichtetem Zimmer ziehen FAIRIES_PER_ROOM Feen ein (zuerst in dieses Zimmer)
@@ -72,9 +74,11 @@ export default class Residents {
     );
     if (!idle.length || Math.random() < 0.4) return;
     const { f, room } = pick(idle);
-    // lieber in Zimmer mit wenigen Feen
+    // Themenkleid (config/dressRooms.js): im passenden Zimmer bleibt sie lieber noch
+    if (roomPreference(f, typeOf(room)) > 1 && Math.random() < STAY_CHANCE) return;
+    // lieber in Zimmer mit wenigen Feen – und in die Zimmer, die zu ihrem Kleid passen
     const others = this.rooms.filter((r) => r !== room && !r.life.dead);
-    const weights = others.map((r) => 1 / (1 + r.life.fairies.length));
+    const weights = others.map((r) => roomPreference(f, typeOf(r)) / (1 + r.life.fairies.length));
     let x = Math.random() * weights.reduce((a, b) => a + b, 0);
     const to = others.find((r, i) => (x -= weights[i]) <= 0) || others[0];
     this.travel(f, room, to);
